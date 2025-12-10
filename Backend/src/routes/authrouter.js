@@ -4,8 +4,24 @@ import User from "../models/user.model.js";
 
 const authRouter = express.Router();
 
-authRouter.post("/login", (req, res) => {
-  res.send("Login route");
+authRouter.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).send("Invalid credentials");
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).send("Invalid credentials");
+    }
+
+    res.status(200).send("Login successful",user);
+
+  } catch (error) {
+    res.status(500).send("Server error");
+  }
 });
 
 authRouter.post("/register", async (req, res) => {
