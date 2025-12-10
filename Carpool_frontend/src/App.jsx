@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
 import Schedules from './pages/Schedules';
+import MyCarpools from './pages/MyCarpools';
+import SuggestedRides from './pages/SuggestedRides';
 
 function App() {
   return (
@@ -18,6 +20,8 @@ function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/schedules" element={<Schedules />} />
+        <Route path="/carpools" element={<MyCarpools />} />
+        <Route path="/suggested-rides" element={<SuggestedRides />} />
       </Routes>
     </Router>
   );

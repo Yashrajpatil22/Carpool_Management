@@ -28,7 +28,7 @@ const Dashboard = () => {
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', active: true, path: '/dashboard' },
-    { icon: Car, label: 'Suggested Rides', badge: '12', path: '/rides' },
+    { icon: Car, label: 'Suggested Rides', badge: '12', path: '/suggested-rides' },
     { icon: Users, label: 'My Carpools', badge: '3', path: '/carpools' },
     { icon: MapPin, label: 'Live Tracking', path: '/tracking' },
     { icon: Calendar, label: 'Schedules', path: '/schedules' },
