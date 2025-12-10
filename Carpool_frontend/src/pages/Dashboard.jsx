@@ -4,7 +4,8 @@ import {
   MapPin, 
   Calendar, 
   Bell, 
-  Settings, 
+  Settings,
+  Link as LinkIcon, 
   Search,
   ChevronDown,
   Menu,
@@ -19,19 +20,20 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', active: true },
-    { icon: Car, label: 'Suggested Rides', badge: '12' },
-    { icon: Users, label: 'My Carpools', badge: '3' },
-    { icon: MapPin, label: 'Live Tracking' },
-    { icon: Calendar, label: 'Schedules' },
-    { icon: Bell, label: 'Notifications', badge: '5' },
-    { icon: Settings, label: 'Settings' },
+    { icon: LayoutDashboard, label: 'Dashboard', active: true, path: '/dashboard' },
+    { icon: Car, label: 'Suggested Rides', badge: '12', path: '/rides' },
+    { icon: Users, label: 'My Carpools', badge: '3', path: '/carpools' },
+    { icon: MapPin, label: 'Live Tracking', path: '/tracking' },
+    { icon: Calendar, label: 'Schedules', path: '/schedules' },
+    { icon: Bell, label: 'Notifications', badge: '5', path: '/notifications' },
+    { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
   const stats = [
@@ -157,11 +159,14 @@ const Dashboard = () => {
             <ul className="space-y-1">
               {menuItems.map((item, index) => (
                 <li key={index}>
-                  <button className={`w-full flex items-center justify-between px-3 py-3 rounded-xl transition ${
-                    item.active 
-                      ? 'bg-gradient-to-r from-blue-600 to-teal-600 text-white' 
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}>
+                  <Link 
+                    to={item.path}
+                    className={`w-full flex items-center justify-between px-3 py-3 rounded-xl transition ${
+                      item.active 
+                        ? 'bg-gradient-to-r from-blue-600 to-teal-600 text-white' 
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
                     <div className="flex items-center space-x-3">
                       <item.icon className="w-5 h-5" />
                       {sidebarOpen && <span className="font-medium">{item.label}</span>}
@@ -173,7 +178,7 @@ const Dashboard = () => {
                         {item.badge}
                       </span>
                     )}
-                  </button>
+                  </Link>
                 </li>
               ))}
             </ul>
