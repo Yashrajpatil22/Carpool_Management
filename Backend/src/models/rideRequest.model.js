@@ -1,4 +1,9 @@
 import mongoose from "mongoose";
+const LocationSchema = new mongoose.Schema({
+  lat: Number,
+  lng: Number,
+  address: String,
+});
 const RideRequestSchema = new mongoose.Schema(
   {
     ride_id: {
