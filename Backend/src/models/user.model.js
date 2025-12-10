@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
-const AddressSchema = new mongoose.Schema({
+const LocationSchema = new mongoose.Schema({
+  address: String,
   lat: Number,
   lng: Number,
 });
@@ -12,8 +13,8 @@ const UserSchema = new mongoose.Schema(
     password: { type: String, required: true },
     phone: { type: String, required: true },
 
-    source_address: AddressSchema,
-    destination_address: AddressSchema,
+    home_address: LocationSchema,
+    work_address: LocationSchema,
 
     toOfficeTime: String, 
     fromOfficeTime: String, 
@@ -21,7 +22,7 @@ const UserSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["driver", "passenger"],
+      enum: ["driver", "passenger", "admin"],
       default: "passenger",
     },
   },

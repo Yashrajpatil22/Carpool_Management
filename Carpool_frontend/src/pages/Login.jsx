@@ -8,13 +8,71 @@ const Login = () => {
     password: '',
     remember: false
   });
+  
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log('Login:', formData);
-    // For now, redirect to dashboard
-    window.location.href = '/dashboard';
+    const newErrors = {};
+    
+    // Validate email
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    
+    // Validate password
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setErrors({});
+    
+    try {
+      const response = await fetch('http://localhost:7777/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+
+      // Store user data in localStorage
+      localStorage.setItem('user', JSON.stringify(data.user || { email: formData.email }));
+      
+      // Success - redirect to dashboard
+      window.location.href = '/dashboard';
+      
+    } catch (error) {
+      console.error('Login error:', error);
+      setErrors({ general: error.message || 'Invalid email or password. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -56,6 +114,12 @@ const Login = () => {
 
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
+              {errors.general && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                  {errors.general}
+                </div>
+              )}
+              
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Email Address
@@ -66,11 +130,14 @@ const Login = () => {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                    className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:outline-none transition ${
+                      errors.email ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-blue-600'
+                    }`}
                     placeholder="you@example.com"
                     required
                   />
                 </div>
+                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
               </div>
 
               <div>
@@ -83,11 +150,14 @@ const Login = () => {
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                    className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:outline-none transition ${
+                      errors.password ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-blue-600'
+                    }`}
                     placeholder="Enter your password"
                     required
                   />
                 </div>
+                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
               </div>
 
               <div className="flex items-center justify-between">
@@ -107,10 +177,13 @@ const Login = () => {
 
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-600 to-teal-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition flex items-center justify-center space-x-2"
+                disabled={isSubmitting}
+                className={`w-full bg-gradient-to-r from-blue-600 to-teal-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition flex items-center justify-center space-x-2 ${
+                  isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
-                <span>Sign In</span>
-                <ArrowRight className="w-5 h-5" />
+                <span>{isSubmitting ? 'Signing in...' : 'Sign in'}</span>
+                {!isSubmitting && <ArrowRight className="w-5 h-5" />}
               </button>
             </form>
 
