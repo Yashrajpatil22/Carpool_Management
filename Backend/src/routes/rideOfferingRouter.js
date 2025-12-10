@@ -74,6 +74,36 @@ rideOfferingRouter.put("/updateride/:rideId", async (req, res) => {
     } catch (error) {
         return res.status(400).json({ message: "ERROR " + error })
     }
-})
+});
+
+rideOfferingRouter.put("/:rideId/status", async (req, res) => {
+    try {
+        // const { userId } = req.params;
+        const { rideId } = req.params;
+        const { status } = req.body;
+
+        const ride = await RideOffering.findById(rideId);
+        if (!ride) return res.status(404).send("Ride not found");
+
+        // if (String(ride.driver_id) !== String(userId)) {
+        //     return res.status(403).send("Not allowed");
+        // }
+
+        ride.status = status;
+        await ride.save();
+
+        // Auto reject all pending requests on cancelling ride
+        if (status === "cancelled") {
+            await RideRequest.updateMany(
+                { ride_id: rideId, status: "pending" },
+                { status: "rejected" }
+            );
+        }
+
+        res.json(ride);
+    } catch (err) {
+        res.status(500).send("Server error");
+    }
+});
 
 export default rideOfferingRouter;
