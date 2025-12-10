@@ -5,6 +5,7 @@ import authRouter from "./routes/authrouter.js";
 import userRouter from "./routes/userrouter.js";
 import carRouter from "./routes/carrouter.js";
 import rideOfferingRouter from "./routes/rideOfferingRouter.js";
+import rideRequestRouter from "./routes/rideRequestRouter.js";
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/car", carRouter);
 app.use("/api/rides", rideOfferingRouter);
+app.use("/api/riderequest", rideRequestRouter);
 
 connectDB().then(() => {
   console.log("Connection established");

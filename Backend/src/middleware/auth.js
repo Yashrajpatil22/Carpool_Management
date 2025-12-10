@@ -1,5 +1,5 @@
 
-import User from "../models/user.model"
+import User from "../models/user.model.js"
 const userAuth = async (req, res, next) => {
     try {
         const email = req.header("x-user-email") || req.body.email;
