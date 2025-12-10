@@ -47,7 +47,7 @@ const Dashboard = () => {
     },
     { 
       label: 'Money Saved', 
-      value: '$1,245', 
+      value: '₹1,245', 
       change: '+8%', 
       icon: DollarSign,
       color: 'from-green-500 to-green-600',
@@ -81,7 +81,7 @@ const Dashboard = () => {
       time: '8:30 AM',
       from: 'Downtown',
       to: 'Tech Park',
-      price: '$5',
+      price: '₹50',
       verified: true
     },
     {
@@ -93,7 +93,7 @@ const Dashboard = () => {
       time: '8:45 AM',
       from: 'Central Station',
       to: 'Business District',
-      price: '$6',
+      price: '₹60',
       verified: true
     },
     {
@@ -105,7 +105,7 @@ const Dashboard = () => {
       time: '9:00 AM',
       from: 'West Side',
       to: 'University Campus',
-      price: '$4',
+      price: '₹40',
       verified: true
     },
   ];
@@ -131,8 +131,8 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50">
       {/* Sidebar */}
       <aside className={`fixed left-0 top-0 h-full bg-white border-r border-slate-200 transition-all duration-300 z-40 ${
-        sidebarOpen ? 'w-64' : 'w-20'
-      } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+        sidebarOpen ? 'w-64' : 'w-64 lg:w-20'
+      } ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200">
@@ -272,7 +272,7 @@ const Dashboard = () => {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
             {stats.map((stat, index) => (
               <div key={index} className="bg-white rounded-2xl p-6 border border-slate-200 hover:shadow-lg transition">
                 <div className="flex items-center justify-between mb-4">
@@ -290,7 +290,7 @@ const Dashboard = () => {
             ))}
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
             {/* Suggested Rides */}
             <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200">
               <div className="flex items-center justify-between mb-6">

@@ -65,7 +65,7 @@ const LandingPage = () => {
                 <span>AI-Powered Smart Transport</span>
               </div>
               
-              <h1 className="text-5xl lg:text-6xl font-bold text-slate-900 leading-tight mb-6">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 leading-tight mb-6">
                 Smart Transport & <span className="bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent">Carpool Automation</span> System
               </h1>
               
@@ -83,7 +83,7 @@ const LandingPage = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-6 mt-12">
+              <div className="grid grid-cols-3 gap-3 sm:gap-6 mt-8 sm:mt-12">
                 <div>
                   <div className="text-3xl font-bold text-slate-900">50K+</div>
                   <div className="text-slate-600 text-sm">Active Users</div>
@@ -262,7 +262,7 @@ const LandingPage = () => {
               },
               { 
                 name: 'Professional', 
-                price: '$99', 
+                price: '₹8,999', 
                 period: '/month',
                 desc: 'For small organizations',
                 features: ['Up to 500 users', 'Advanced analytics', 'Priority support', 'Custom branding', 'API access'],
