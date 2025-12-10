@@ -156,7 +156,7 @@ const Login = () => {
               </div>
             </div>
             <p className="text-white/90 italic">
-              "SmartCarpool has transformed our company's commute. We've saved over $50,000 and reduced our carbon footprint by 40%."
+              "SmartCarpool has transformed our company's commute. We've saved over ₹50,00,000 and reduced our carbon footprint by 40%."
             </p>
           </div>
         </div>
