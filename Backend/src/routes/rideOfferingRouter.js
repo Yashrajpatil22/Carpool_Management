@@ -15,14 +15,26 @@ rideOfferingRouter.post("/createride", async (req, res) => {
         if (!userId) return res.status(401).json({ message: "User id not provided or not authenticated" });
 
         const ride = new RideOffering({
-            driver_id: userId,
-            car_id: carId,
-            start_location: startLocation,
-            destination_location: destinationLocation,
-            start_time: startTime,
-            available_seats: availableSeats,
-            base_fare: baseFare,
-            ride_type: ride_type
+          driver_id: userId,
+          car_id: carId,
+          start_location: {
+            ...startLocation,
+            geo: {
+              type: "Point",
+              coordinates: [startLocation.lng, startLocation.lat],
+            },
+          },
+          destination_location: {
+            ...destinationLocation,
+            geo: {
+              type: "Point",
+              coordinates: [destinationLocation.lng, destinationLocation.lat],
+            },
+          },
+          start_time: startTime,
+          available_seats: availableSeats,
+          base_fare: baseFare,
+          ride_type: ride_type,
         });
 
         await ride.save();

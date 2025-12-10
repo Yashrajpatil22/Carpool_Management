@@ -3,6 +3,10 @@ const LocationSchema = new mongoose.Schema({
   lat: Number,
   lng: Number,
   address: String,
+  geo: {
+    type: { type: String, enum: ["Point"], default: "Point" },
+    coordinates: { type: [Number], default: [0, 0] }, // [lng, lat]
+  },
 });
 
 const RideOfferingSchema = new mongoose.Schema(
@@ -40,5 +44,6 @@ const RideOfferingSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+RideOfferingSchema.index({ "start_location.geo": "2dsphere" });
 
 export default mongoose.model("RideOffering", RideOfferingSchema);
