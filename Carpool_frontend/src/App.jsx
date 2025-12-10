@@ -9,6 +9,8 @@ import Schedules from './pages/Schedules';
 import MyCarpools from './pages/MyCarpools';
 import SuggestedRides from './pages/SuggestedRides';
 import LiveTracking from './pages/LiveTracking';
+import OfferRide from './pages/OfferRide';
+import FindRide from './pages/FindRide';
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
         <Route path="/carpools" element={<MyCarpools />} />
         <Route path="/suggested-rides" element={<SuggestedRides />} />
         <Route path="/tracking" element={<LiveTracking />} />
+        <Route path="/offer-ride" element={<OfferRide />} />
+        <Route path="/find-ride" element={<FindRide />} />
       </Routes>
     </Router>
   );
