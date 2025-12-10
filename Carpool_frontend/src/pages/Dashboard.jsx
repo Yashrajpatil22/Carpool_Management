@@ -28,7 +28,7 @@ const Dashboard = () => {
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', active: true, path: '/dashboard' },
-    { icon: Car, label: 'Suggested Rides', badge: '12', path: '/rides' },
+    { icon: Car, label: 'Suggested Rides', badge: '12', path: '/suggested-rides' },
     { icon: Users, label: 'My Carpools', badge: '3', path: '/carpools' },
     { icon: MapPin, label: 'Live Tracking', path: '/tracking' },
     { icon: Calendar, label: 'Schedules', path: '/schedules' },
@@ -260,13 +260,20 @@ const Dashboard = () => {
               <p className="text-blue-100 mb-6">You have 2 upcoming rides today. Ready to start your commute?</p>
               
               <div className="flex flex-wrap gap-4">
-                <button className="bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold hover:shadow-xl transition flex items-center space-x-2">
-                  <Navigation className="w-5 h-5" />
-                  <span>Start Trip</span>
-                </button>
-                <button className="bg-white/20 backdrop-blur-sm text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/30 transition border border-white/30">
-                  View Schedule
-                </button>
+                <Link 
+                  to="/offer-ride"
+                  className="bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold hover:shadow-xl transition flex items-center space-x-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Offer a Ride</span>
+                </Link>
+                <Link 
+                  to="/find-ride"
+                  className="bg-white/20 backdrop-blur-sm text-white px-6 py-3 rounded-xl font-semibold hover:bg-white/30 transition border border-white/30 flex items-center space-x-2"
+                >
+                  <Search className="w-5 h-5" />
+                  <span>Find a Ride</span>
+                </Link>
               </div>
             </div>
           </div>
@@ -385,21 +392,6 @@ const Dashboard = () => {
                       </div>
                     </div>
                   ))}
-                </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl p-6 text-white">
-                <h3 className="text-lg font-bold mb-4">Quick Actions</h3>
-                <div className="space-y-3">
-                  <button className="w-full bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white py-3 rounded-xl font-semibold transition border border-white/30 flex items-center justify-center space-x-2">
-                    <Plus className="w-4 h-4" />
-                    <span>Offer a Ride</span>
-                  </button>
-                  <button className="w-full bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white py-3 rounded-xl font-semibold transition border border-white/30 flex items-center justify-center space-x-2">
-                    <MapPin className="w-4 h-4" />
-                    <span>Find Ride</span>
-                  </button>
                 </div>
               </div>
             </div>
