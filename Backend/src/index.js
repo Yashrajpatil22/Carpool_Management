@@ -1,7 +1,11 @@
 import express from "express";
+import dotenv from "dotenv";
+import connectDB from "./config/database.js";
+
+dotenv.config();
+
 const app = express();
-require("dotenv").config();
-const connectDB = require("./config/database");
+
 connectDB().then(() => {
   console.log("Connection established");
   app.listen(process.env.PORT, () => {

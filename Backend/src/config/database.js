@@ -1,10 +1,12 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
+import dotenv from "dotenv";
 
-require("dotenv").config();
+dotenv.config();
+
 const connectDB = async () => {
   await mongoose.connect(
     process.env.MONGO_URL,
   );
 };
 
-module.exports = connectDB;
+export default connectDB;
