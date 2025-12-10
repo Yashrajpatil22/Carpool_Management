@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import connectDB from "./config/database.js";
 import authRouter from "./routes/authrouter.js";
 import userRouter from "./routes/userrouter.js";
+import carRouter from "./routes/carrouter.js";
 
 dotenv.config();
 
@@ -11,6 +12,7 @@ app.use(express.json());
 
 app.use("/api/auth", authRouter);  
 app.use("/api/user", userRouter);
+app.use("/api/car", carRouter);
 
 connectDB().then(() => {
   console.log("Connection established");
