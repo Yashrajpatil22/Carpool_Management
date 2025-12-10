@@ -1,9 +1,34 @@
 import { Link } from 'react-router-dom';
-import { Car, Mail, Lock, User, Phone, MapPin, ArrowRight, Chrome } from 'lucide-react';
+import { Car, Mail, Lock, User, Phone, MapPin, ArrowRight, Chrome, Home, Briefcase, Navigation, Map } from 'lucide-react';
 import { useState } from 'react';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix Leaflet default marker icon
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Map Click Handler Component
+function LocationPicker({ onLocationSelect }) {
+  useMapEvents({
+    click(e) {
+      onLocationSelect(e.latlng);
+    },
+  });
+  return null;
+}
 
 const Signup = () => {
   const [step, setStep] = useState(1);
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [mapLocationType, setMapLocationType] = useState(''); // 'home' or 'work'
+  const [tempMarkerPosition, setTempMarkerPosition] = useState(null);
+  
   const [formData, setFormData] = useState({
     role: '',
     name: '',
@@ -11,7 +36,18 @@ const Signup = () => {
     phone: '',
     password: '',
     confirmPassword: '',
-    address: ''
+    // Location fields
+    homeAddress: '',
+    workAddress: '',
+    homeCoords: null,
+    workCoords: null,
+    // Vehicle fields (for drivers)
+    vehicleMake: '',
+    vehicleModel: '',
+    vehicleYear: '',
+    vehicleColor: '',
+    vehiclePlate: '',
+    vehicleSeats: 4
   });
 
   const roles = [
@@ -40,11 +76,60 @@ const Signup = () => {
     setStep(2);
   };
 
+  const handleNextToStep3 = (e) => {
+    e.preventDefault();
+    setStep(3);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log('Signup:', formData);
     // Redirect to dashboard
     window.location.href = '/dashboard';
+  };
+
+  const searchLocation = async (query, type) => {
+    // Mock geocoding - in production, use Google Maps Geocoding API or similar
+    console.log(`Searching for ${type}:`, query);
+    // Simulated coordinates for Mumbai
+    const mockCoords = {
+      lat: 19.0760 + Math.random() * 0.1,
+      lng: 72.8777 + Math.random() * 0.1
+    };
+    
+    if (type === 'home') {
+      setFormData({...formData, homeAddress: query, homeCoords: mockCoords});
+    } else {
+      setFormData({...formData, workAddress: query, workCoords: mockCoords});
+    }
+  };
+
+  const openMapPicker = (type) => {
+    setMapLocationType(type);
+    // Set initial position based on existing coords or default Mumbai location
+    const initialPos = type === 'home' 
+      ? (formData.homeCoords || { lat: 19.0760, lng: 72.8777 })
+      : (formData.workCoords || { lat: 19.0760, lng: 72.8777 });
+    setTempMarkerPosition([initialPos.lat, initialPos.lng]);
+    setShowMapModal(true);
+  };
+
+  const handleMapLocationSelect = (latlng) => {
+    setTempMarkerPosition([latlng.lat, latlng.lng]);
+  };
+
+  const confirmMapLocation = () => {
+    if (tempMarkerPosition) {
+      const coords = { lat: tempMarkerPosition[0], lng: tempMarkerPosition[1] };
+      const address = `Location: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
+      
+      if (mapLocationType === 'home') {
+        setFormData({...formData, homeAddress: address, homeCoords: coords});
+      } else {
+        setFormData({...formData, workAddress: address, workCoords: coords});
+      }
+    }
+    setShowMapModal(false);
   };
 
   return (
@@ -66,12 +151,16 @@ const Signup = () => {
           <div className="bg-white rounded-3xl shadow-xl p-8 border border-slate-200">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-slate-900 mb-2">
-                {step === 1 ? 'Choose your role' : 'Create your account'}
+                {step === 1 ? 'Choose your role' : step === 2 ? 'Create your account' : 'Complete your profile'}
               </h1>
               <p className="text-slate-600">
                 {step === 1 
                   ? 'Select how you plan to use SmartCarpool' 
-                  : 'Fill in your details to get started'}
+                  : step === 2
+                  ? 'Fill in your details to get started'
+                  : formData.role === 'driver' 
+                  ? 'Add your vehicle and location details'
+                  : 'Set your home and work locations'}
               </p>
             </div>
 
@@ -126,7 +215,7 @@ const Signup = () => {
                   </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleNextToStep3} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Full Name
@@ -240,7 +329,232 @@ const Signup = () => {
                       type="submit"
                       className="flex-1 bg-gradient-to-r from-blue-600 to-teal-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition flex items-center justify-center space-x-2"
                     >
-                      <span>Create Account</span>
+                      <span>Continue</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                </form>
+
+                <div className="mt-6 text-center">
+                  <p className="text-slate-600">
+                    Already have an account?{' '}
+                    <Link to="/login" className="text-blue-600 hover:text-blue-700 font-semibold">
+                      Sign in
+                    </Link>
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Step 3: Location & Vehicle Details */}
+            {step === 3 && (
+              <>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Location Section */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <h3 className="font-semibold text-slate-900 mb-3 flex items-center space-x-2">
+                      <MapPin className="w-5 h-5 text-blue-600" />
+                      <span>Your Locations</span>
+                    </h3>
+                    <p className="text-sm text-slate-600 mb-4">
+                      Help us find the best carpool matches for your daily commute
+                    </p>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Home Address *
+                        </label>
+                        <div className="relative">
+                          <Home className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                          <input
+                            type="text"
+                            value={formData.homeAddress}
+                            onChange={(e) => setFormData({...formData, homeAddress: e.target.value})}
+                            onBlur={(e) => searchLocation(e.target.value, 'home')}
+                            className="w-full pl-12 pr-12 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                            placeholder="Enter your home address"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => openMapPicker('home')}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-600 hover:text-blue-700 p-1 hover:bg-blue-50 rounded-lg transition"
+                            title="Pick location on map"
+                          >
+                            <Map className="w-5 h-5" />
+                          </button>
+                        </div>
+                        {formData.homeCoords && (
+                          <p className="text-xs text-green-600 mt-1 flex items-center space-x-1">
+                            <span>✓</span>
+                            <span>Location verified</span>
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Work/Destination Address *
+                        </label>
+                        <div className="relative">
+                          <Briefcase className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                          <input
+                            type="text"
+                            value={formData.workAddress}
+                            onChange={(e) => setFormData({...formData, workAddress: e.target.value})}
+                            onBlur={(e) => searchLocation(e.target.value, 'work')}
+                            className="w-full pl-12 pr-12 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                            placeholder="Enter your work/destination address"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => openMapPicker('work')}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-600 hover:text-blue-700 p-1 hover:bg-blue-50 rounded-lg transition"
+                            title="Pick location on map"
+                          >
+                            <Map className="w-5 h-5" />
+                          </button>
+                        </div>
+                        {formData.workCoords && (
+                          <p className="text-xs text-green-600 mt-1 flex items-center space-x-1">
+                            <span>✓</span>
+                            <span>Location verified</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Vehicle Section - Only for Drivers */}
+                  {formData.role === 'driver' && (
+                    <div className="bg-gradient-to-r from-blue-50 to-teal-50 border border-blue-200 rounded-xl p-4">
+                      <h3 className="font-semibold text-slate-900 mb-3 flex items-center space-x-2">
+                        <Car className="w-5 h-5 text-blue-600" />
+                        <span>Your Vehicle Details</span>
+                      </h3>
+                      <p className="text-sm text-slate-600 mb-4">
+                        Add your vehicle information to start offering rides
+                      </p>
+
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Make *
+                            </label>
+                            <input
+                              type="text"
+                              value={formData.vehicleMake}
+                              onChange={(e) => setFormData({...formData, vehicleMake: e.target.value})}
+                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                              placeholder="Toyota"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Model *
+                            </label>
+                            <input
+                              type="text"
+                              value={formData.vehicleModel}
+                              onChange={(e) => setFormData({...formData, vehicleModel: e.target.value})}
+                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                              placeholder="Camry"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Year *
+                            </label>
+                            <input
+                              type="number"
+                              value={formData.vehicleYear}
+                              onChange={(e) => setFormData({...formData, vehicleYear: e.target.value})}
+                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                              placeholder="2022"
+                              min="1990"
+                              max="2025"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Color
+                            </label>
+                            <select
+                              value={formData.vehicleColor}
+                              onChange={(e) => setFormData({...formData, vehicleColor: e.target.value})}
+                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                            >
+                              <option value="">Select</option>
+                              <option value="White">White</option>
+                              <option value="Black">Black</option>
+                              <option value="Silver">Silver</option>
+                              <option value="Grey">Grey</option>
+                              <option value="Red">Red</option>
+                              <option value="Blue">Blue</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              License Plate *
+                            </label>
+                            <input
+                              type="text"
+                              value={formData.vehiclePlate}
+                              onChange={(e) => setFormData({...formData, vehiclePlate: e.target.value.toUpperCase()})}
+                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                              placeholder="MH 01 AB 1234"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                              Available Seats *
+                            </label>
+                            <select
+                              value={formData.vehicleSeats}
+                              onChange={(e) => setFormData({...formData, vehicleSeats: parseInt(e.target.value)})}
+                              className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                            >
+                              <option value="2">2 Passengers</option>
+                              <option value="3">3 Passengers</option>
+                              <option value="4">4 Passengers</option>
+                              <option value="5">5 Passengers</option>
+                              <option value="6">6 Passengers</option>
+                              <option value="7">7 Passengers</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit Buttons */}
+                  <div className="flex space-x-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-semibold hover:bg-slate-200 transition"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 bg-gradient-to-r from-blue-600 to-teal-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition flex items-center justify-center space-x-2"
+                    >
+                      <span>Complete Signup</span>
                       <ArrowRight className="w-5 h-5" />
                     </button>
                   </div>
@@ -259,6 +573,89 @@ const Signup = () => {
           </div>
         </div>
       </div>
+
+      {/* Map Modal */}
+      {showMapModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-teal-600 text-white p-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold">
+                  Select {mapLocationType === 'home' ? 'Home' : 'Work'} Location
+                </h3>
+                <p className="text-blue-100 text-sm mt-1">
+                  Click anywhere on the map to set your location
+                </p>
+              </div>
+              <button
+                onClick={() => setShowMapModal(false)}
+                className="p-2 hover:bg-white/20 rounded-lg transition"
+              >
+                <ArrowRight className="w-6 h-6 rotate-45" />
+              </button>
+            </div>
+
+            {/* Map Container */}
+            <div className="h-[500px] relative">
+              <MapContainer
+                center={tempMarkerPosition || [19.0760, 72.8777]}
+                zoom={13}
+                style={{ height: '100%', width: '100%' }}
+                zoomControl={true}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <LocationPicker onLocationSelect={handleMapLocationSelect} />
+                {tempMarkerPosition && (
+                  <Marker position={tempMarkerPosition} />
+                )}
+              </MapContainer>
+
+              {/* Floating Info Card */}
+              {tempMarkerPosition && (
+                <div className="absolute top-4 left-4 right-4 bg-white rounded-xl shadow-lg p-4 z-[1000] border-2 border-blue-200">
+                  <div className="flex items-start space-x-3">
+                    <div className="bg-blue-100 p-2 rounded-lg">
+                      <MapPin className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-slate-900">Selected Location</h4>
+                      <p className="text-sm text-slate-600">
+                        Latitude: {tempMarkerPosition[0].toFixed(6)}<br />
+                        Longitude: {tempMarkerPosition[1].toFixed(6)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-slate-200 p-6 flex gap-3">
+              <button
+                onClick={() => setShowMapModal(false)}
+                className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-semibold hover:bg-slate-200 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmMapLocation}
+                disabled={!tempMarkerPosition}
+                className={`flex-1 py-3 rounded-xl font-semibold transition ${
+                  tempMarkerPosition
+                    ? 'bg-gradient-to-r from-blue-600 to-teal-600 text-white hover:shadow-lg'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                Confirm Location
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Right Side - Illustration */}
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-600 to-teal-600 p-12 items-center justify-center relative overflow-hidden">
