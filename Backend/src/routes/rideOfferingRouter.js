@@ -30,6 +30,21 @@ rideOfferingRouter.post("/createride", async (req, res) => {
     } catch (error) {
         return res.json({ message: "ERROR: " + error })
     }
+});
+
+rideOfferingRouter.get("/getrides/my/:userId", async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const rides = await RideOffering.find({ driver_id: userId }).sort({
+            createdAt: -1,
+        });
+
+        res.json(rides);
+
+    } catch (error) {
+        return res.json({ message: "ERROR " + error })
+    }
 })
 
 export default rideOfferingRouter;
