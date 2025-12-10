@@ -75,10 +75,10 @@ const Settings = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
           {/* Sidebar Navigation */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 sticky top-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 lg:sticky lg:top-6">
               <nav className="space-y-1">
                 {tabs.map((tab) => (
                   <button
@@ -135,7 +135,7 @@ const Settings = () => {
                     </div>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         Full Name
