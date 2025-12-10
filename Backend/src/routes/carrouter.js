@@ -36,4 +36,34 @@ carRouter.get("/my", async (req, res) => {
   }
 });
 
+carRouter.put("/:carId", async (req, res) => {
+  const { carId } = req.params;
+  const updateData = req.body;
+
+  try {
+    const updatedCar = await Car.findByIdAndUpdate(carId, updateData, {
+      new: true,
+    });
+    if (!updatedCar) {
+      return res.status(404).send("Car not found");
+    }
+    res.status(200).json(updatedCar);
+  } catch (error) {
+    res.status(500).send("Server error");
+  }
+});
+
+carRouter.delete("/:carId", async (req, res) => {
+  const { carId } = req.params;
+  try {
+    const deletedCar = await Car.findByIdAndDelete(carId);
+    if (!deletedCar) {
+      return res.status(404).send("Car not found");
+    }
+    res.status(200).json(deletedCar);
+  } catch (error) {
+    res.status(500).send("Server error");
+  }
+});
+
 export default carRouter;
