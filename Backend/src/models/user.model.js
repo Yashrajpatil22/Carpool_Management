@@ -1,11 +1,8 @@
 import mongoose from "mongoose";
 
 const AddressSchema = new mongoose.Schema({
-  locality: String,
-  city: String,
-  state: String,
-  country: String,
-  pincode: String,
+  lat: Number,
+  lng: Number,
 });
 
 const UserSchema = new mongoose.Schema(
