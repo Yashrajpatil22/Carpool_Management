@@ -19,12 +19,30 @@ import {
   Plus,
   ArrowRight
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Get user data from localStorage
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', active: true, path: '/dashboard' },
@@ -187,18 +205,24 @@ const Dashboard = () => {
           {/* User Profile */}
           <div className="border-t border-slate-200 p-4">
             <div className={`flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'}`}>
-              <img 
-                src="https://i.pravatar.cc/100?img=4" 
-                alt="User" 
-                className="w-10 h-10 rounded-full"
-              />
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center text-white font-bold">
+                {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              </div>
               {sidebarOpen && (
                 <div className="flex-1">
-                  <div className="font-semibold text-slate-900 text-sm">Alex Morgan</div>
-                  <div className="text-xs text-slate-500">alex@example.com</div>
+                  <div className="font-semibold text-slate-900 text-sm">{user?.name || 'User'}</div>
+                  <div className="text-xs text-slate-500">{user?.email || 'user@example.com'}</div>
                 </div>
               )}
-              {sidebarOpen && <ChevronDown className="w-4 h-4 text-slate-400" />}
+              {sidebarOpen && (
+                <button
+                  onClick={handleLogout}
+                  className="text-red-500 hover:text-red-600 text-xs font-medium"
+                  title="Logout"
+                >
+                  Logout
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -256,7 +280,9 @@ const Dashboard = () => {
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjEiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-20"></div>
             
             <div className="relative z-10">
-              <h2 className="text-3xl font-bold mb-2">Welcome back, Alex! 👋</h2>
+              <h2 className="text-3xl font-bold mb-2">
+                Welcome back, {user?.name || 'User'}! 👋
+              </h2>
               <p className="text-blue-100 mb-6">You have 2 upcoming rides today. Ready to start your commute?</p>
               
               <div className="flex flex-wrap gap-4">

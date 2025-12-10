@@ -28,6 +28,8 @@ const Signup = () => {
   const [showMapModal, setShowMapModal] = useState(false);
   const [mapLocationType, setMapLocationType] = useState(''); // 'home' or 'work'
   const [tempMarkerPosition, setTempMarkerPosition] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
     role: '',
@@ -41,6 +43,10 @@ const Signup = () => {
     workAddress: '',
     homeCoords: null,
     workCoords: null,
+    // Time and schedule fields
+    toOfficeTime: '',
+    fromOfficeTime: '',
+    workingDays: [],
     // Vehicle fields (for drivers)
     vehicleMake: '',
     vehicleModel: '',
@@ -49,6 +55,28 @@ const Signup = () => {
     vehiclePlate: '',
     vehicleSeats: 4
   });
+
+  // Validation functions
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone) => {
+    const phoneRegex = /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/;
+    return phoneRegex.test(phone.replace(/\s/g, ''));
+  };
+
+  const validatePassword = (password) => {
+    // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
+    return password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /[0-9]/.test(password);
+  };
+
+  const validatePlateNumber = (plate) => {
+    // Basic validation for Indian plate format
+    const plateRegex = /^[A-Z]{2}\s?[0-9]{1,2}\s?[A-Z]{1,2}\s?[0-9]{1,4}$/i;
+    return plateRegex.test(plate.replace(/\s/g, ''));
+  };
 
   const roles = [
     { 
@@ -78,14 +106,194 @@ const Signup = () => {
 
   const handleNextToStep3 = (e) => {
     e.preventDefault();
+    const newErrors = {};
+    
+    // Validate name
+    if (!formData.name || formData.name.trim().length < 2) {
+      newErrors.name = 'Name must be at least 2 characters';
+    }
+    
+    // Validate email
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    
+    // Validate phone
+    if (!formData.phone) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!validatePhone(formData.phone)) {
+      newErrors.phone = 'Please enter a valid phone number';
+    }
+    
+    // Validate password
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (!validatePassword(formData.password)) {
+      newErrors.password = 'Password must be at least 8 characters with uppercase, lowercase, and number';
+    }
+    
+    // Validate password match
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    
+    setErrors({});
     setStep(3);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Signup:', formData);
-    // Redirect to dashboard
-    window.location.href = '/dashboard';
+    const newErrors = {};
+    
+    // Validate addresses
+    if (!formData.homeAddress || formData.homeAddress.trim().length < 5) {
+      newErrors.homeAddress = 'Please enter a valid home address';
+    }
+    
+    if (!formData.workAddress || formData.workAddress.trim().length < 5) {
+      newErrors.workAddress = 'Please enter a valid work address';
+    }
+    
+    // Validate times
+    if (!formData.toOfficeTime) {
+      newErrors.toOfficeTime = 'To office time is required';
+    }
+    
+    if (!formData.fromOfficeTime) {
+      newErrors.fromOfficeTime = 'From office time is required';
+    }
+    
+    // Validate working days
+    if (formData.workingDays.length === 0) {
+      newErrors.workingDays = 'Please select at least one working day';
+    }
+    
+    // Validate vehicle details for drivers
+    if (formData.role === 'driver') {
+      if (!formData.vehicleMake || formData.vehicleMake.trim().length < 2) {
+        newErrors.vehicleMake = 'Vehicle make is required';
+      }
+      
+      if (!formData.vehicleModel || formData.vehicleModel.trim().length < 2) {
+        newErrors.vehicleModel = 'Vehicle model is required';
+      }
+      
+      if (!formData.vehicleYear) {
+        newErrors.vehicleYear = 'Vehicle year is required';
+      } else {
+        const year = parseInt(formData.vehicleYear);
+        const currentYear = new Date().getFullYear();
+        if (year < 1990 || year > currentYear + 1) {
+          newErrors.vehicleYear = `Year must be between 1990 and ${currentYear + 1}`;
+        }
+      }
+      
+      if (!formData.vehiclePlate) {
+        newErrors.vehiclePlate = 'License plate is required';
+      } else if (!validatePlateNumber(formData.vehiclePlate)) {
+        newErrors.vehiclePlate = 'Please enter a valid license plate (e.g., MH 01 AB 1234)';
+      }
+    }
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      alert('Please fix all validation errors before submitting');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setErrors({});
+    
+    try {
+      // Step 1: Register user
+      const userPayload = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        homeAddress: {
+          address: formData.homeAddress,
+          lat: formData.homeCoords?.lat || 0,
+          lng: formData.homeCoords?.lng || 0,
+        },
+        workAddress: {
+          address: formData.workAddress,
+          lat: formData.workCoords?.lat || 0,
+          lng: formData.workCoords?.lng || 0,
+        },
+        toOfficeTime: formData.toOfficeTime,
+        fromOfficeTime: formData.fromOfficeTime,
+        workingDays: formData.workingDays,
+        type: formData.role,
+      };
+
+      const registerResponse = await fetch('http://localhost:7777/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userPayload),
+      });
+
+      const registerData = await registerResponse.json();
+
+      if (!registerResponse.ok) {
+        throw new Error(registerData.message || 'Registration failed');
+      }
+
+      console.log('User registered:', registerData);
+      const userId = registerData.userId;
+
+      // Step 2: Register vehicle (only for drivers)
+      if (formData.role === 'driver') {
+        const vehiclePayload = {
+          user_id: userId,
+          model: formData.vehicleModel,
+          company: formData.vehicleMake,
+          plate_number: formData.vehiclePlate,
+          color: formData.vehicleColor || 'Not specified',
+          number_of_seats: formData.vehicleSeats,
+          year_of_manufacture: parseInt(formData.vehicleYear),
+        };
+
+        const vehicleResponse = await fetch('http://localhost:7777/api/car/add', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(vehiclePayload),
+        });
+
+        const vehicleData = await vehicleResponse.json();
+
+        if (!vehicleResponse.ok) {
+          console.error('Vehicle registration failed:', vehicleData);
+          alert('User registered but vehicle registration failed. You can add vehicle later in settings.');
+        } else {
+          console.log('Vehicle registered:', vehicleData);
+        }
+      }
+
+      // Store user data in localStorage
+      localStorage.setItem('user', JSON.stringify(registerData.user));
+      
+      // Success - redirect to login
+      alert('Registration successful! Please login.');
+      window.location.href = '/login';
+      
+    } catch (error) {
+      console.error('Signup error:', error);
+      alert(error.message || 'Registration failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const searchLocation = async (query, type) => {
@@ -226,11 +434,14 @@ const Signup = () => {
                         type="text"
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                        className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:outline-none transition ${
+                          errors.name ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-blue-600'
+                        }`}
                         placeholder="John Doe"
                         required
                       />
                     </div>
+                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                   </div>
 
                   <div>
@@ -243,11 +454,14 @@ const Signup = () => {
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                        className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:outline-none transition ${
+                          errors.email ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-blue-600'
+                        }`}
                         placeholder="you@example.com"
                         required
                       />
                     </div>
+                    {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                   </div>
 
                   <div>
@@ -260,11 +474,14 @@ const Signup = () => {
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                        className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
-                        placeholder="+1 (555) 000-0000"
+                        className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:outline-none transition ${
+                          errors.phone ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-blue-600'
+                        }`}
+                        placeholder="+91 98765 43210"
                         required
                       />
                     </div>
+                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                   </div>
 
                   <div>
@@ -277,11 +494,14 @@ const Signup = () => {
                         type="password"
                         value={formData.password}
                         onChange={(e) => setFormData({...formData, password: e.target.value})}
-                        className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                        className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:outline-none transition ${
+                          errors.password ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-blue-600'
+                        }`}
                         placeholder="Create a strong password"
                         required
                       />
                     </div>
+                    {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
                   </div>
 
                   <div>
@@ -294,11 +514,14 @@ const Signup = () => {
                         type="password"
                         value={formData.confirmPassword}
                         onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-                        className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                        className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:outline-none transition ${
+                          errors.confirmPassword ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-blue-600'
+                        }`}
                         placeholder="Confirm your password"
                         required
                       />
                     </div>
+                    {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
                   </div>
 
                   <div className="pt-2">
@@ -422,6 +645,80 @@ const Signup = () => {
                             <span>✓</span>
                             <span>Location verified</span>
                           </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Schedule Section - For All Users */}
+                  <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
+                    <h3 className="font-semibold text-slate-900 mb-3 flex items-center space-x-2">
+                      <MapPin className="w-5 h-5 text-teal-600" />
+                      <span>Commute Schedule</span>
+                    </h3>
+                    <p className="text-sm text-slate-600 mb-4">
+                      When do you usually travel for work?
+                    </p>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            To Office Time *
+                          </label>
+                          <input
+                            type="time"
+                            value={formData.toOfficeTime}
+                            onChange={(e) => setFormData({...formData, toOfficeTime: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-teal-600 focus:outline-none transition"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            From Office Time *
+                          </label>
+                          <input
+                            type="time"
+                            value={formData.fromOfficeTime}
+                            onChange={(e) => setFormData({...formData, fromOfficeTime: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-teal-600 focus:outline-none transition"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Working Days *
+                        </label>
+                        <div className="grid grid-cols-7 gap-2">
+                          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => {
+                            const fullDay = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][index];
+                            const isSelected = formData.workingDays.includes(fullDay);
+                            return (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => {
+                                  const updatedDays = isSelected
+                                    ? formData.workingDays.filter(d => d !== fullDay)
+                                    : [...formData.workingDays, fullDay];
+                                  setFormData({...formData, workingDays: updatedDays});
+                                }}
+                                className={`py-2 px-1 rounded-lg text-sm font-medium transition ${
+                                  isSelected
+                                    ? 'bg-teal-600 text-white'
+                                    : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-teal-600'
+                                }`}
+                              >
+                                {day}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {formData.workingDays.length === 0 && (
+                          <p className="text-xs text-red-500 mt-2">Please select at least one working day</p>
                         )}
                       </div>
                     </div>
