@@ -9,6 +9,7 @@ import rideDiscoveryRouter from "./routes/ridediscoveryrouter.js";
 import routePointRouter from "./routes/routepointsrouter.js";
 import rideRequestRouter from "./routes/rideRequestRouter.js";
 import rideAssignmentRouter from "./routes/rideAssignmentRouter.js";
+import rideSuggestionRouter from "./routes/rideSuggestionRouter.js";
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use("/api/ridediscovery", rideDiscoveryRouter);
 app.use("/api/routepoints", routePointRouter);
 app.use("/api/riderequest", rideRequestRouter);
 app.use("/api/rideassignment", rideAssignmentRouter)
+app.use("/api/ridesuggestion", rideSuggestionRouter);
 
 
 connectDB().then(() => {

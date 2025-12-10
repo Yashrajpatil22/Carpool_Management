@@ -1,6 +1,6 @@
 import express from "express";
 import RideAssignment from "../models/rideAssignment.model.js";
-import RideOffering from "../models/rideOffering.model.js";
+import RideOffering from "../models/location.model.js";
 
 const rideAssignmentRouter = express.Router();
 
