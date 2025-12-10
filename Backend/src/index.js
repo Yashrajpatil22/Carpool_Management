@@ -6,7 +6,7 @@ import userRouter from "./routes/userrouter.js";
 import carRouter from "./routes/carrouter.js";
 import rideOfferingRouter from "./routes/rideOfferingRouter.js";
 import rideDiscoveryRouter from "./routes/ridediscoveryrouter.js";
-import routePointRouter from "./routes/routePointRouter.js";
+import routePointRouter from "./routes/routepointsrouter.js";
 
 dotenv.config();
 

@@ -1,6 +1,6 @@
 import express from "express";
-import RoutePoint from "../models/routePoints.model.js";
-import RideOffering from "../models/rideOffering.model.js";
+import RoutePoint from "../models/routePoint.model.js";
+import RideOffering from "../models/location.model.js";
 
 const routePointRouter = express.Router();
 
@@ -45,4 +45,4 @@ routePointRouter.get("/:rideId", async (req, res) => {
   }
 });
 
-export default router;
+export default routePointRouter;
