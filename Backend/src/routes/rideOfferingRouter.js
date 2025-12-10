@@ -45,6 +45,35 @@ rideOfferingRouter.get("/getrides/my/:userId", async (req, res) => {
     } catch (error) {
         return res.json({ message: "ERROR " + error })
     }
+});
+
+rideOfferingRouter.put("/updateride/:rideId", async (req, res) => {
+    try {
+        const { rideId } = req.params;
+        const ride = await RideOffering.findById(rideId);
+        if (!ride) {
+            return res.status(400).json({ message: "ride not found" });
+
+        }
+        const allowedFields = [
+            "start_location",
+            "destination_location",
+            "start_time",
+            "available_seats",
+            "base_fare",
+        ];
+
+        allowedFields.forEach((field) => {
+            if (req.body[field] !== undefined) {
+                ride[field] = req.body[field];
+            }
+        });
+
+        await ride.save();
+        res.json({ message: "Ride updated succussfully", ride });
+    } catch (error) {
+        return res.status(400).json({ message: "ERROR " + error })
+    }
 })
 
 export default rideOfferingRouter;
