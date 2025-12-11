@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Car, Users, MapPin, TrendingUp, Shield, Clock, BarChart3, Leaf, Building2, CheckCircle, ArrowRight, Menu, X } from 'lucide-react';
+import { Car, Users, MapPin, TrendingUp, Shield, Clock, BarChart3, Leaf, Building2, CheckCircle, ArrowRight, Menu, X, Heart, Wallet, DollarSign, TreePine, Wind, Droplet } from 'lucide-react';
 import { useState } from 'react';
 
 const LandingPage = () => {
@@ -203,113 +203,129 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* For Organizations */}
-      <section className="py-20 px-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-4xl font-bold mb-6">Built for Organizations</h2>
-              <p className="text-slate-300 text-lg mb-8">
-                Empower your institution with enterprise-grade transport management. Perfect for universities, corporates, and large organizations.
-              </p>
-              
-              <div className="space-y-4">
-                {[
-                  'Fleet management & bus tracking',
-                  'Employee/student ride matching',
-                  'Custom route optimization',
-                  'Analytics & reporting dashboard',
-                  'Integration with existing systems',
-                ].map((item, index) => (
-                  <div key={index} className="flex items-center space-x-3">
-                    <CheckCircle className="w-6 h-6 text-teal-400" />
-                    <span className="text-slate-200">{item}</span>
-                  </div>
-                ))}
-              </div>
-
-              <button className="mt-8 bg-white text-slate-900 px-8 py-4 rounded-xl font-semibold hover:shadow-xl transition">
-                Request Enterprise Demo
-              </button>
-            </div>
-
-            <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20">
-              <img 
-                src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=600&fit=crop" 
-                alt="Enterprise" 
-                className="rounded-2xl"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing" className="py-20 px-6">
+      {/* Benefits Section */}
+      <section id="pricing" className="py-20 px-6 bg-gradient-to-br from-blue-50 via-teal-50 to-green-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">Simple Pricing</h2>
-            <p className="text-xl text-slate-600">Choose the plan that fits your organization</p>
+            <h2 className="text-4xl font-bold text-slate-900 mb-4">Why Choose SmartCarpool?</h2>
+            <p className="text-xl text-slate-600">Experience the multiple benefits of carpooling</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { 
-                name: 'Starter', 
-                price: 'Free', 
-                desc: 'For individual users',
-                features: ['Up to 10 rides/month', 'Basic matching', 'Mobile app access', 'Community support']
-              },
-              { 
-                name: 'Professional', 
-                price: '₹8,999', 
-                period: '/month',
-                desc: 'For small organizations',
-                features: ['Up to 500 users', 'Advanced analytics', 'Priority support', 'Custom branding', 'API access'],
-                popular: true
-              },
-              { 
-                name: 'Enterprise', 
-                price: 'Custom', 
-                desc: 'For large institutions',
-                features: ['Unlimited users', 'Dedicated support', 'Custom integrations', 'SLA guarantee', 'On-premise option']
-              },
-            ].map((plan, index) => (
-              <div key={index} className={`bg-white rounded-2xl p-8 border-2 ${plan.popular ? 'border-blue-600 shadow-2xl scale-105' : 'border-slate-200'} relative`}>
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-blue-600 to-teal-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-                
-                <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
-                <p className="text-slate-600 mb-6">{plan.desc}</p>
-                
-                <div className="mb-6">
-                  <span className="text-5xl font-bold text-slate-900">{plan.price}</span>
-                  {plan.period && <span className="text-slate-600">{plan.period}</span>}
-                </div>
-
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center space-x-3">
-                      <CheckCircle className="w-5 h-5 text-teal-600" />
-                      <span className="text-slate-600">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button className={`w-full py-3 rounded-xl font-semibold transition ${
-                  plan.popular 
-                    ? 'bg-gradient-to-r from-blue-600 to-teal-600 text-white hover:shadow-lg' 
-                    : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
-                }`}>
-                  Get Started
-                </button>
+            {/* Environmental Benefits */}
+            <div className="bg-white rounded-2xl p-8 border-2 border-green-200 shadow-lg hover:shadow-xl transition">
+              <div className="bg-gradient-to-br from-green-500 to-emerald-600 w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <Leaf className="w-8 h-8 text-white" />
               </div>
-            ))}
+              
+              <h3 className="text-2xl font-bold text-slate-900 mb-4">Environmental Impact</h3>
+              <p className="text-slate-600 mb-6">Make a positive difference for our planet</p>
+              
+              <ul className="space-y-4">
+                <li className="flex items-start space-x-3">
+                  <Wind className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Reduce carbon emissions by up to 2.5 kg per ride</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <TreePine className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Decrease air pollution in your community</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <Droplet className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Conserve natural resources and fuel</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Contribute to a sustainable future</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* User Benefits */}
+            <div className="bg-white rounded-2xl p-8 border-2 border-blue-600 shadow-2xl transform scale-105 relative">
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                <span className="bg-gradient-to-r from-blue-600 to-teal-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                  Most Popular
+                </span>
+              </div>
+
+              <div className="bg-gradient-to-br from-blue-600 to-teal-600 w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <Heart className="w-8 h-8 text-white" />
+              </div>
+              
+              <h3 className="text-2xl font-bold text-slate-900 mb-4">Personal Benefits</h3>
+              <p className="text-slate-600 mb-6">Enhance your daily commute experience</p>
+              
+              <ul className="space-y-4">
+                <li className="flex items-start space-x-3">
+                  <DollarSign className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Save money on fuel and parking costs</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <Clock className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Save time with HOV lane access</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <Users className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Build social connections and network</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <Shield className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Reduce stress with shared driving</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Verified and trusted community</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Community Benefits */}
+            <div className="bg-white rounded-2xl p-8 border-2 border-purple-200 shadow-lg hover:shadow-xl transition">
+              <div className="bg-gradient-to-br from-purple-500 to-pink-600 w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <Building2 className="w-8 h-8 text-white" />
+              </div>
+              
+              <h3 className="text-2xl font-bold text-slate-900 mb-4">Community Impact</h3>
+              <p className="text-slate-600 mb-6">Create a better environment for everyone</p>
+              
+              <ul className="space-y-4">
+                <li className="flex items-start space-x-3">
+                  <Car className="w-5 h-5 text-purple-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Reduce traffic congestion significantly</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <MapPin className="w-5 h-5 text-purple-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Less demand for parking spaces</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <TrendingUp className="w-5 h-5 text-purple-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Support local sustainability goals</span>
+                </li>
+                <li className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-purple-600 mt-1 flex-shrink-0" />
+                  <span className="text-slate-700">Strengthen community bonds</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Call to Action */}
+          <div className="mt-16 text-center">
+            <h3 className="text-3xl font-bold text-slate-900 mb-4">Start Your Carpooling Journey Today</h3>
+            <p className="text-lg text-slate-600 mb-8">Join thousands of commuters making a difference</p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link 
+                to="/signup" 
+                className="bg-gradient-to-r from-blue-600 to-teal-600 text-white px-8 py-4 rounded-xl font-semibold hover:shadow-xl transition inline-flex items-center justify-center space-x-2"
+              >
+                <span>Get Started Free</span>
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+              <button className="bg-white text-slate-900 px-8 py-4 rounded-xl font-semibold border-2 border-slate-200 hover:border-blue-600 hover:text-blue-600 transition">
+                Learn More
+              </button>
+            </div>
           </div>
         </div>
       </section>

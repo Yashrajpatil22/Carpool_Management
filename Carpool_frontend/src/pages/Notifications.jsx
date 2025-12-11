@@ -15,6 +15,7 @@ import {
   Loader,
 } from "lucide-react";
 import axios from "axios";
+import { getShortAddress } from "../utils/geocode";
 
 const Notifications = () => {
   const navigate = useNavigate();
@@ -58,13 +59,51 @@ const Notifications = () => {
           );
           const requests = requestsRes.data || [];
 
-          // Add ride info to each request
-          requests.forEach((req) => {
-            allRequests.push({
+          // Add ride info to each request and geocode locations if needed
+          for (const req of requests) {
+            const requestWithRide = {
               ...req,
               ride_info: ride,
-            });
-          });
+            };
+
+            // Geocode pickup location if it's coordinates
+            if (req.pickup_location?.address && 
+                (req.pickup_location.address.startsWith('Location:') || 
+                 req.pickup_location.address.match(/^\d+\.\d+,\s*\d+\.\d+$/))) {
+              try {
+                const geocodedAddress = await getShortAddress(
+                  req.pickup_location.lat,
+                  req.pickup_location.lng
+                );
+                requestWithRide.pickup_location = {
+                  ...req.pickup_location,
+                  address: geocodedAddress
+                };
+              } catch (err) {
+                console.error('Error geocoding pickup location:', err);
+              }
+            }
+
+            // Geocode drop location if it's coordinates
+            if (req.drop_location?.address && 
+                (req.drop_location.address.startsWith('Location:') || 
+                 req.drop_location.address.match(/^\d+\.\d+,\s*\d+\.\d+$/))) {
+              try {
+                const geocodedAddress = await getShortAddress(
+                  req.drop_location.lat,
+                  req.drop_location.lng
+                );
+                requestWithRide.drop_location = {
+                  ...req.drop_location,
+                  address: geocodedAddress
+                };
+              } catch (err) {
+                console.error('Error geocoding drop location:', err);
+              }
+            }
+
+            allRequests.push(requestWithRide);
+          }
         } catch (err) {
           console.error(`Error fetching requests for ride ${ride._id}:`, err);
         }
@@ -325,8 +364,7 @@ const Notifications = () => {
                         Your Ride
                       </p>
                       <p className="text-xs text-slate-600">
-                        {new Date(request.ride_info?.date).toLocaleDateString()}{" "}
-                        at {request.ride_info?.start_time}
+                        {request.ride_info?.start_time || 'Time not set'}
                       </p>
                     </div>
                   </div>
@@ -339,10 +377,20 @@ const Notifications = () => {
                       </p>
                       <p className="text-xs text-slate-600">
                         From:{" "}
-                        {request.pickup_location?.address || "Pickup location"}
+                        {request.pickup_location?.address && 
+                         !request.pickup_location.address.startsWith('Location:') ? 
+                         request.pickup_location.address : 
+                         (request.pickup_location?.lat && request.pickup_location?.lng ? 
+                          `${request.pickup_location.lat.toFixed(4)}, ${request.pickup_location.lng.toFixed(4)}` : 
+                          'Pickup location')}
                       </p>
                       <p className="text-xs text-slate-600">
-                        To: {request.drop_location?.address || "Drop location"}
+                        To: {request.drop_location?.address && 
+                             !request.drop_location.address.startsWith('Location:') ? 
+                             request.drop_location.address : 
+                             (request.drop_location?.lat && request.drop_location?.lng ? 
+                              `${request.drop_location.lat.toFixed(4)}, ${request.drop_location.lng.toFixed(4)}` : 
+                              'Drop location')}
                       </p>
                     </div>
                   </div>
