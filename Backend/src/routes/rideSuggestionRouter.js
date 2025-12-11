@@ -10,7 +10,7 @@ rideSuggestionRouter.post("/find", async (req, res) => {
     if (!pickup_location?.lat || !pickup_location?.lng)
       return res.status(400).json({ error: "pickup_location required" });
 
-    const maxDistance = radius || 5000; // default 5 km
+    const maxDistance = radius || 5000; 
 
     const rides = await RideOffering.aggregate([
       {

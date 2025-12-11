@@ -10,12 +10,12 @@ import routePointRouter from "./routes/routepointsrouter.js";
 import rideRequestRouter from "./routes/rideRequestRouter.js";
 import rideAssignmentRouter from "./routes/rideAssignmentRouter.js";
 import rideSuggestionRouter from "./routes/rideSuggestionRouter.js";
+import rideTrackingRouter from "./routes/rideTrackingRouter.js";
 
 dotenv.config();
 
 const app = express();
 
-// CORS middleware
 app.use((req, res, next) => {
   const allowedOrigins = ['http://localhost:5173', 'http://localhost:5174'];
   const origin = req.headers.origin;
@@ -42,6 +42,7 @@ app.use("/api/routepoints", routePointRouter);
 app.use("/api/riderequest", rideRequestRouter);
 app.use("/api/rideassignment", rideAssignmentRouter)
 app.use("/api/ridesuggestion", rideSuggestionRouter);
+app.use("/api/ridetracking", rideTrackingRouter);
 
 
 connectDB().then(() => {
