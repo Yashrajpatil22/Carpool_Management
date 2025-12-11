@@ -64,8 +64,8 @@ rideRequestRouter.get("/ride/:rideId", async (req, res) => {
         const ride = await RideOffering.findById(rideId);
         if (!ride) return res.status(404).send("Ride not found");
 
-        if (String(ride.driver_id) !== String(driverId))
-            return res.status(403).send("Not allowed");
+        // if (String(ride.driver_id) !== String(driverId))
+            // return res.status(403).send("Not allowed");
 
         const requests = await RideRequest.find({ ride_id: rideId }).populate(
             "passenger_id"
@@ -88,8 +88,8 @@ rideRequestRouter.put("/:requestId/accept", async (req, res) => {
 
         const ride = await RideOffering.findById(request.ride_id);
 
-        if (String(ride.driver_id) !== String(driverId))
-            return res.status(403).send("Not allowed");
+        // if (String(ride.driver_id) !== String(driverId))
+        //     return res.status(403).send("Not allowed");
 
         if (ride.available_seats <= 0)
             return res.status(400).send("No seats left");
@@ -121,8 +121,8 @@ rideRequestRouter.put("/:requestId/reject", async (req, res) => {
         const request = await RideRequest.findById(requestId);
         const ride = await RideOffering.findById(request.ride_id);
 
-        if (String(ride.driver_id) !== String(driverId))
-            return res.status(403).send("Not allowed");
+        // if (String(ride.driver_id) !== String(driverId))
+        //     return res.status(403).send("Not allowed");
 
         request.status = "rejected";
         await request.save();
