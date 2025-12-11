@@ -583,15 +583,10 @@ const Dashboard = () => {
             </div>
 
             <div className="flex items-center space-x-3">
-              <button className="relative p-2 hover:bg-slate-100 rounded-lg transition">
+              <Link to="/notifications" className="relative p-2 hover:bg-slate-100 rounded-lg transition">
                 <Bell className="w-5 h-5 text-slate-600" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-              
-              <button className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-teal-600 text-white px-4 py-2 rounded-xl hover:shadow-lg transition">
-                <Plus className="w-4 h-4" />
-                <span className="font-medium">Request Ride</span>
-              </button>
+              </Link>
             </div>
           </div>
         </header>
