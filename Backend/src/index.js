@@ -24,7 +24,7 @@ app.use((req, res, next) => {
   const allowedOrigins = [
     "http://localhost:5173",
     "http://localhost:5174",
-    "https://carpool-management-3.onrender.com/",
+    "https://carpool-management.vercel.app/",
   ];
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
