@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { getShortAddress } from '../utils/geocode';
 import { 
   ArrowLeft, 
   Calendar as CalendarIcon,
@@ -18,65 +20,143 @@ import {
 } from 'lucide-react';
 
 const Schedules = () => {
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('week'); // week, day, month
   const [filterType, setFilterType] = useState('all'); // all, driver, passenger
+  const [schedules, setSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-  const schedules = [
-    {
-      id: 1,
-      type: 'driver',
-      title: 'Morning Commute - Tech Park',
-      time: '08:00 AM',
-      endTime: '09:00 AM',
-      passengers: 3,
-      route: 'Downtown → Tech Park',
-      status: 'confirmed',
-      recurring: true,
-      days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-      date: '2025-12-10'
-    },
-    {
-      id: 2,
-      type: 'passenger',
-      title: 'Evening Return',
-      time: '05:30 PM',
-      endTime: '06:30 PM',
-      driver: 'John Smith',
-      route: 'Tech Park → Downtown',
-      status: 'confirmed',
-      recurring: true,
-      days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-      date: '2025-12-10'
-    },
-    {
-      id: 3,
-      type: 'driver',
-      title: 'Weekend Trip - Airport',
-      time: '02:00 PM',
-      endTime: '03:30 PM',
-      passengers: 2,
-      route: 'City Center → Airport',
-      status: 'pending',
-      recurring: false,
-      date: '2025-12-14'
-    },
-    {
-      id: 4,
-      type: 'passenger',
-      title: 'Shopping Mall',
-      time: '11:00 AM',
-      endTime: '12:00 PM',
-      driver: 'Sarah Johnson',
-      route: 'Home → Mall District',
-      status: 'confirmed',
-      recurring: false,
-      date: '2025-12-11'
-    },
-  ];
+  useEffect(() => {
+    fetchSchedules();
+  }, []);
+
+  const fetchSchedules = async () => {
+    try {
+      setLoading(true);
+      const userData = localStorage.getItem('user');
+      if (!userData) {
+        navigate('/login');
+        return;
+      }
+
+      const user = JSON.parse(userData);
+      const userId = user._id;
+
+      // Fetch offered rides (as driver)
+      const offeredRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/rides/getrides/my/${userId}`);
+      const offeredRides = offeredRes.data || [];
+
+      // Fetch ride requests (as passenger)
+      const requestsRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/viewrequest`, {
+        headers: { 'user-id': userId }
+      });
+      const rideRequests = requestsRes.data || [];
+
+      // Transform offered rides to schedule format
+      const driverSchedules = await Promise.all(offeredRides.map(async (ride) => {
+        let startLoc = 'Start';
+        let destLoc = 'End';
+
+        if (ride.start_location) {
+          if (ride.start_location.address && 
+              !ride.start_location.address.startsWith('Location:') && 
+              !ride.start_location.address.match(/^\d+\.\d+,\s*\d+\.\d+$/)) {
+            startLoc = ride.start_location.address;
+          } else if (ride.start_location.lat && ride.start_location.lng) {
+            try {
+              startLoc = await getShortAddress(ride.start_location.lat, ride.start_location.lng);
+            } catch (err) {
+              startLoc = `${ride.start_location.lat.toFixed(4)}, ${ride.start_location.lng.toFixed(4)}`;
+            }
+          }
+        }
+
+        if (ride.destination_location) {
+          if (ride.destination_location.address && 
+              !ride.destination_location.address.startsWith('Location:') && 
+              !ride.destination_location.address.match(/^\d+\.\d+,\s*\d+\.\d+$/)) {
+            destLoc = ride.destination_location.address;
+          } else if (ride.destination_location.lat && ride.destination_location.lng) {
+            try {
+              destLoc = await getShortAddress(ride.destination_location.lat, ride.destination_location.lng);
+            } catch (err) {
+              destLoc = `${ride.destination_location.lat.toFixed(4)}, ${ride.destination_location.lng.toFixed(4)}`;
+            }
+          }
+        }
+
+        return {
+          id: ride._id,
+          type: 'driver',
+          title: `${ride.ride_type || 'Carpool'} - ${destLoc}`,
+          time: ride.start_time || 'N/A',
+          endTime: ride.end_time || 'N/A',
+          passengers: ride.available_seats || 0,
+          route: `${startLoc} → ${destLoc}`,
+          status: ride.status === 'active' ? 'confirmed' : ride.status || 'pending',
+          recurring: ride.ride_type === 'office',
+          days: ride.ride_type === 'office' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] : [],
+          date: ride.createdAt ? new Date(ride.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+        };
+      }));
+
+      // Transform ride requests to schedule format
+      const passengerSchedules = await Promise.all(rideRequests.filter(req => req.ride_id).map(async (req) => {
+        let pickupLoc = 'Pickup';
+        let dropLoc = 'Drop';
+
+        if (req.pickup_location) {
+          if (req.pickup_location.address && 
+              !req.pickup_location.address.startsWith('Location:')) {
+            pickupLoc = req.pickup_location.address;
+          } else if (req.pickup_location.lat && req.pickup_location.lng) {
+            try {
+              pickupLoc = await getShortAddress(req.pickup_location.lat, req.pickup_location.lng);
+            } catch (err) {
+              pickupLoc = `${req.pickup_location.lat.toFixed(4)}, ${req.pickup_location.lng.toFixed(4)}`;
+            }
+          }
+        }
+
+        if (req.drop_location) {
+          if (req.drop_location.address && 
+              !req.drop_location.address.startsWith('Location:')) {
+            dropLoc = req.drop_location.address;
+          } else if (req.drop_location.lat && req.drop_location.lng) {
+            try {
+              dropLoc = await getShortAddress(req.drop_location.lat, req.drop_location.lng);
+            } catch (err) {
+              dropLoc = `${req.drop_location.lat.toFixed(4)}, ${req.drop_location.lng.toFixed(4)}`;
+            }
+          }
+        }
+
+        return {
+          id: req._id,
+          type: 'passenger',
+          title: req.ride_id.ride_type || 'Carpool',
+          time: req.ride_id.start_time || 'N/A',
+          endTime: req.ride_id.end_time || 'N/A',
+          driver: req.ride_id.driver_id?.name || 'Driver',
+          route: `${pickupLoc} → ${dropLoc}`,
+          status: req.status === 'accepted' ? 'confirmed' : req.status || 'pending',
+          recurring: req.ride_id.ride_type === 'office',
+          days: req.ride_id.ride_type === 'office' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] : [],
+          date: req.createdAt ? new Date(req.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
+        };
+      }));
+
+      setSchedules([...driverSchedules, ...passengerSchedules]);
+    } catch (error) {
+      console.error('Error fetching schedules:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getWeekDates = () => {
     const curr = new Date(selectedDate);
@@ -262,7 +342,12 @@ const Schedules = () => {
             <div className="space-y-3">
               <h3 className="text-lg font-bold text-slate-900">Upcoming Rides</h3>
               
-              {filteredSchedules.length === 0 ? (
+              {loading ? (
+                <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-slate-600">Loading schedules...</p>
+                </div>
+              ) : filteredSchedules.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 text-center">
                   <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                     <CalendarIcon className="w-8 h-8 text-slate-400" />

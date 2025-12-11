@@ -269,7 +269,7 @@ const Signup = () => {
         type: formData.role,
       };
 
-      const registerResponse = await fetch('http://localhost:7777/api/auth/register', {
+      const registerResponse = await fetch(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -298,7 +298,7 @@ const Signup = () => {
           year_of_manufacture: parseInt(formData.vehicleYear),
         };
 
-        const vehicleResponse = await fetch('http://localhost:7777/api/car/add', {
+        const vehicleResponse = await fetch(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/car/add`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
