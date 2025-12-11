@@ -120,7 +120,7 @@ const OfferRide = () => {
 
   const fetchVehicles = async (userId) => {
     try {
-      const response = await fetch(`http://localhost:7777/api/car/my?user_id=${userId}`);
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/car/my?user_id=${userId}`);
       const data = await response.json();
       
       if (response.ok) {
@@ -254,7 +254,7 @@ const OfferRide = () => {
         baseFare: parseFloat(formData.base_fare)
       };
 
-      const response = await fetch('http://localhost:7777/api/rides/createride', {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/rides/createride`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -181,7 +181,7 @@ const FindRide = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:7777/api/ridesuggestion/find', {
+      const response = await axios.post(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/ridesuggestion/find`, {
         pickup_location: {
           lat: searchData.sourceCoords.lat,
           lng: searchData.sourceCoords.lng

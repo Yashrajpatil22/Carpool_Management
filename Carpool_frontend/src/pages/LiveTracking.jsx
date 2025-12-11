@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import axios from 'axios';
+import { getShortAddress } from '../utils/geocode';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle as LeafletCircle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -66,26 +68,170 @@ const pickupIcon = createCustomIcon('#3b82f6', '📍');
 const dropoffIcon = createCustomIcon('#14b8a6', '🎯');
 
 const LiveTracking = () => {
+  const navigate = useNavigate();
+  const { rideId } = useParams();
   const [driverLocation, setDriverLocation] = useState({ lat: 19.0760, lng: 72.8777 });
   const [eta, setEta] = useState(8);
   const [currentSpeed, setCurrentSpeed] = useState(45);
+  const [ride, setRide] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [pickupLocation, setPickupLocation] = useState({ lat: 19.0896, lng: 72.8656 });
+  const [dropoffLocation, setDropoffLocation] = useState({ lat: 19.1150, lng: 72.8697 });
+  const [routePath, setRoutePath] = useState([]);
 
-  const pickupLocation = { lat: 19.0896, lng: 72.8656 };
-  const dropoffLocation = { lat: 19.1150, lng: 72.8697 };
+  useEffect(() => {
+    fetchRideData();
+  }, [rideId]);
 
-  // Route path
-  const routePath = [
-    [19.0760, 72.8777], // Driver current location
-    [19.0820, 72.8700],
-    [19.0860, 72.8680],
-    [19.0896, 72.8656], // Pickup
-    [19.0950, 72.8670],
-    [19.1020, 72.8685],
-    [19.1150, 72.8697], // Dropoff
-  ];
+  const fetchRideData = async () => {
+    try {
+      setLoading(true);
+      const userData = localStorage.getItem('user');
+      if (!userData) {
+        navigate('/login');
+        return;
+      }
+
+      const user = JSON.parse(userData);
+      const userId = user._id;
+
+      // If rideId is provided in URL params, fetch that specific ride
+      // Otherwise, fetch the user's most recent active ride
+      let rideData = null;
+
+      if (rideId) {
+        const rideRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/rides/getrides/${rideId}`);
+        rideData = rideRes.data;
+      } else {
+        // Fetch user's active rides
+        const ridesRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/rides/getrides/my/${userId}`);
+        const rides = ridesRes.data || [];
+        const activeRides = rides.filter(r => r.status === 'active');
+        
+        if (activeRides.length > 0) {
+          rideData = activeRides[0];
+        } else {
+          // If no active rides as driver, check ride requests
+          const requestsRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/viewrequest`, {
+            headers: { 'user-id': userId }
+          });
+          const requests = requestsRes.data || [];
+          const activeRequests = requests.filter(r => r.status === 'accepted' && r.ride_id);
+          
+          if (activeRequests.length > 0) {
+            rideData = activeRequests[0].ride_id;
+          }
+        }
+      }
+
+      if (!rideData) {
+        console.log('No active ride found');
+        setLoading(false);
+        return;
+      }
+
+      // Geocode locations
+      let startAddress = 'Start Location';
+      let destAddress = 'Destination';
+
+      if (rideData.start_location) {
+        const { lat, lng, address } = rideData.start_location;
+        setPickupLocation({ lat, lng });
+        setDriverLocation({ lat, lng });
+
+        if (address && !address.startsWith('Location:')) {
+          startAddress = address;
+        } else if (lat && lng) {
+          try {
+            startAddress = await getShortAddress(lat, lng);
+          } catch (err) {
+            startAddress = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          }
+        }
+      }
+
+      if (rideData.destination_location) {
+        const { lat, lng, address } = rideData.destination_location;
+        setDropoffLocation({ lat, lng });
+
+        if (address && !address.startsWith('Location:')) {
+          destAddress = address;
+        } else if (lat && lng) {
+          try {
+            destAddress = await getShortAddress(lat, lng);
+          } catch (err) {
+            destAddress = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          }
+        }
+      }
+
+      // Create route path
+      const path = [];
+      if (rideData.start_location?.lat && rideData.start_location?.lng) {
+        path.push([rideData.start_location.lat, rideData.start_location.lng]);
+      }
+      if (rideData.destination_location?.lat && rideData.destination_location?.lng) {
+        path.push([rideData.destination_location.lat, rideData.destination_location.lng]);
+      }
+      setRoutePath(path);
+
+      // Fetch passengers for this ride
+      let passengers = [];
+      try {
+        const passengersRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/ride/${rideData._id}`, {
+          headers: { 'user-id': userId }
+        });
+        const requests = passengersRes.data || [];
+        passengers = requests
+          .filter(req => req.status === 'accepted')
+          .map(req => ({
+            name: req.user_id?.name || 'Passenger',
+            avatar: req.user_id?.profilePhoto || `https://ui-avatars.com/api/?name=${req.user_id?.name || 'P'}&background=random`,
+            status: 'waiting'
+          }));
+      } catch (err) {
+        console.error('Error fetching passengers:', err);
+      }
+
+      setRide({
+        driver: {
+          name: rideData.driver_id?.name || 'Driver',
+          avatar: rideData.driver_id?.profilePhoto || `https://ui-avatars.com/api/?name=${rideData.driver_id?.name || 'D'}&background=random`,
+          rating: 4.9,
+          phone: rideData.driver_id?.phone || 'N/A',
+          car: { 
+            model: rideData.vehicle_id?.model || 'Car', 
+            color: rideData.vehicle_id?.color || 'N/A', 
+            plate: rideData.vehicle_id?.plateNumber || 'N/A' 
+          }
+        },
+        pickup: { 
+          name: startAddress, 
+          address: startAddress, 
+          time: rideData.start_time || 'N/A' 
+        },
+        dropoff: { 
+          name: destAddress, 
+          address: destAddress, 
+          time: rideData.end_time || 'N/A' 
+        },
+        price: rideData.base_fare || 0,
+        passengers: passengers,
+        status: rideData.status || 'active',
+        bookingId: rideData._id?.substring(0, 12).toUpperCase() || 'N/A'
+      });
+
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching ride data:', error);
+      setLoading(false);
+    }
+  };
 
   // Simulate real-time driver movement
   useEffect(() => {
+    if (!ride) return;
+
     let step = 0;
     const interval = setInterval(() => {
       setDriverLocation(prev => {
@@ -100,33 +246,39 @@ const LiveTracking = () => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [ride, pickupLocation]);
 
-  const ride = {
-    driver: {
-      name: 'Sarah Johnson',
-      avatar: 'https://i.pravatar.cc/100?img=1',
-      rating: 4.9,
-      phone: '+91 98765 43210',
-      car: { model: 'Toyota Camry', color: 'Silver', plate: 'MH 01 AB 1234' }
-    },
-    pickup: { name: 'Downtown Plaza', address: 'MG Road, Mumbai', time: '8:00 AM' },
-    dropoff: { name: 'Tech Park Gate 3', address: 'Bandra Kurla Complex', time: '8:35 AM' },
-    price: 50,
-    passengers: [
-      { name: 'You', avatar: 'https://i.pravatar.cc/100?img=10', status: 'waiting' },
-      { name: 'Michael Chen', avatar: 'https://i.pravatar.cc/100?img=2', status: 'picked' }
-    ],
-    status: 'arriving',
-    bookingId: 'RP-2025-00156'
-  };
+  const routeStops = ride ? [
+    { name: 'Starting Point', address: 'Driver Location', status: 'completed', time: ride.pickup.time },
+    { name: 'Your Pickup', address: ride.pickup.address, status: 'current', time: ride.pickup.time, eta: `${Math.floor(eta)} min` },
+    { name: 'Destination', address: ride.dropoff.address, status: 'pending', time: ride.dropoff.time }
+  ] : [];
 
-  const routeStops = [
-    { name: 'Starting Point', address: 'Driver Location', status: 'completed', time: '7:45 AM' },
-    { name: 'Michael Chen Pickup', address: 'Central Station', status: 'completed', time: '7:52 AM' },
-    { name: 'Your Pickup', address: 'Downtown Plaza', status: 'current', time: '8:00 AM', eta: `${Math.floor(eta)} min` },
-    { name: 'Tech Park', address: 'Bandra Kurla Complex', status: 'pending', time: '8:35 AM' }
-  ];
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading ride details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!ride) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-slate-900 mb-2">No Active Ride</h3>
+          <p className="text-slate-600 mb-4">You don't have any active rides to track.</p>
+          <Link to="/dashboard" className="bg-gradient-to-r from-blue-600 to-teal-600 text-white px-6 py-2.5 rounded-xl font-semibold hover:shadow-lg transition">
+            Go to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50">

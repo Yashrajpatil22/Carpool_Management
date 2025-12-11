@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { getShortAddress } from '../utils/geocode';
 import { 
   ArrowLeft, 
   Users,
@@ -24,97 +26,236 @@ import {
 } from 'lucide-react';
 
 const MyCarpools = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('active'); // active, completed, cancelled
+  const [carpools, setCarpools] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState([
+    { label: 'Active Carpools', value: '0', icon: Users, color: 'blue' },
+    { label: 'Total Rides', value: '0', icon: Car, color: 'teal' },
+    { label: 'Money Saved', value: '₹0', icon: DollarSign, color: 'green' },
+    { label: 'Avg Rating', value: '0', icon: Star, color: 'yellow' },
+  ]);
 
-  const carpools = [
-    {
-      id: 1,
-      status: 'active',
-      type: 'driver',
-      title: 'Daily Tech Park Commute',
-      route: 'Downtown → Tech Park',
-      schedule: 'Mon-Fri, 8:00 AM',
-      passengers: [
-        { id: 1, name: 'Sarah Johnson', avatar: 'https://i.pravatar.cc/100?img=1', rating: 4.9, phone: '+91 98765 43210' },
-        { id: 2, name: 'Michael Chen', avatar: 'https://i.pravatar.cc/100?img=2', rating: 4.8, phone: '+91 98765 43211' },
-        { id: 3, name: 'Emma Davis', avatar: 'https://i.pravatar.cc/100?img=3', rating: 5.0, phone: '+91 98765 43212' },
-      ],
-      totalRides: 45,
-      nextRide: 'Tomorrow, 8:00 AM',
-      earnings: '₹6,750',
-      rating: 4.9,
-      isRecurring: true,
-      car: { model: 'Toyota Camry', plate: 'MH 01 AB 1234' }
-    },
-    {
-      id: 2,
-      status: 'active',
-      type: 'passenger',
-      title: 'Evening Return Commute',
-      route: 'Tech Park → Downtown',
-      schedule: 'Mon-Fri, 5:30 PM',
-      driver: {
-        id: 1,
-        name: 'John Smith',
-        avatar: 'https://i.pravatar.cc/100?img=4',
-        rating: 4.8,
-        phone: '+91 98765 43213',
-        car: { model: 'Honda Accord', plate: 'MH 02 CD 5678' }
-      },
-      coPassengers: [
-        { id: 1, name: 'Lisa Anderson', avatar: 'https://i.pravatar.cc/100?img=5' },
-        { id: 2, name: 'David Wilson', avatar: 'https://i.pravatar.cc/100?img=6' },
-      ],
-      totalRides: 42,
-      nextRide: 'Today, 5:30 PM',
-      spent: '₹4,200',
-      rating: 4.9,
-      isRecurring: true
-    },
-    {
-      id: 3,
-      status: 'active',
-      type: 'driver',
-      title: 'Weekend Airport Run',
-      route: 'City Center → Airport',
-      schedule: 'Sat, 2:00 PM',
-      passengers: [
-        { id: 1, name: 'Robert Taylor', avatar: 'https://i.pravatar.cc/100?img=7', rating: 4.7, phone: '+91 98765 43214' },
-      ],
-      totalRides: 1,
-      nextRide: 'Dec 14, 2:00 PM',
-      earnings: '₹500',
-      rating: 5.0,
-      isRecurring: false,
-      car: { model: 'Toyota Camry', plate: 'MH 01 AB 1234' }
-    },
-    {
-      id: 4,
-      status: 'completed',
-      type: 'passenger',
-      title: 'Morning Shopping Trip',
-      route: 'Home → Mall District',
-      completedDate: 'Dec 8, 2025',
-      driver: {
-        id: 2,
-        name: 'Sarah Johnson',
-        avatar: 'https://i.pravatar.cc/100?img=1',
-        rating: 4.9
-      },
-      totalRides: 1,
-      spent: '₹150',
-      rating: 5.0
-    },
-  ];
+  useEffect(() => {
+    fetchCarpools();
+  }, []);
+
+  // Helper function to format date/time to IST
+  const formatDateTime = (dateTimeString) => {
+    if (!dateTimeString || dateTimeString === 'N/A') return dateTimeString;
+    
+    // If it's just a time (HH:MM format), return as is
+    if (/^\d{1,2}:\d{2}(\s?[AP]M)?$/i.test(dateTimeString)) {
+      return dateTimeString;
+    }
+    
+    try {
+      const date = new Date(dateTimeString);
+      if (isNaN(date.getTime())) return dateTimeString;
+      
+      return date.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (err) {
+      return dateTimeString;
+    }
+  };
+
+  const fetchCarpools = async () => {
+    try {
+      setLoading(true);
+      const userData = localStorage.getItem('user');
+      if (!userData) {
+        navigate('/login');
+        return;
+      }
+
+      const user = JSON.parse(userData);
+      const userId = user._id;
+
+      // Fetch offered rides (as driver)
+      const offeredRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/rides/getrides/my/${userId}`);
+      const offeredRides = offeredRes.data || [];
+
+      // Fetch ride requests (as passenger)
+      const requestsRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/viewrequest`, {
+        headers: { 'user-id': userId }
+      });
+      const rideRequests = requestsRes.data || [];
+
+      // Transform offered rides to carpool format (as driver)
+      const driverCarpools = await Promise.all(offeredRides.map(async (ride) => {
+        let startLoc = 'Start';
+        let destLoc = 'End';
+
+        if (ride.start_location) {
+          if (ride.start_location.address && 
+              !ride.start_location.address.startsWith('Location:') && 
+              !ride.start_location.address.match(/^\d+\.\d+,\s*\d+\.\d+$/)) {
+            startLoc = ride.start_location.address;
+          } else if (ride.start_location.lat && ride.start_location.lng) {
+            try {
+              startLoc = await getShortAddress(ride.start_location.lat, ride.start_location.lng);
+            } catch (err) {
+              startLoc = `${ride.start_location.lat.toFixed(4)}, ${ride.start_location.lng.toFixed(4)}`;
+            }
+          }
+        }
+
+        if (ride.destination_location) {
+          if (ride.destination_location.address && 
+              !ride.destination_location.address.startsWith('Location:') && 
+              !ride.destination_location.address.match(/^\d+\.\d+,\s*\d+\.\d+$/)) {
+            destLoc = ride.destination_location.address;
+          } else if (ride.destination_location.lat && ride.destination_location.lng) {
+            try {
+              destLoc = await getShortAddress(ride.destination_location.lat, ride.destination_location.lng);
+            } catch (err) {
+              destLoc = `${ride.destination_location.lat.toFixed(4)}, ${ride.destination_location.lng.toFixed(4)}`;
+            }
+          }
+        }
+
+        // Fetch passengers for this ride
+        let passengers = [];
+        try {
+          const passengersRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/ride/${ride._id}`, {
+            headers: { 'user-id': userId }
+          });
+          const requests = passengersRes.data || [];
+          passengers = requests
+            .filter(req => req.status === 'accepted')
+            .map(req => ({
+              id: req.user_id?._id || req._id,
+              name: req.user_id?.name || 'Passenger',
+              avatar: req.user_id?.profilePhoto || `https://ui-avatars.com/api/?name=${req.user_id?.name || 'P'}&background=random`,
+              rating: 4.8,
+              phone: req.user_id?.phone || 'N/A'
+            }));
+        } catch (err) {
+          console.error('Error fetching passengers:', err);
+        }
+
+        return {
+          id: ride._id,
+          status: ride.status || 'active',
+          type: 'driver',
+          title: `${ride.ride_type || 'Carpool'} ${ride.ride_type === 'office' ? 'Commute' : 'Trip'}`,
+          route: `${startLoc} → ${destLoc}`,
+          schedule: `${ride.start_time || 'N/A'}`,
+          passengers: passengers,
+          totalRides: 1,
+          nextRide: ride.createdAt ? new Date(ride.createdAt).toLocaleString('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          }) : ride.start_time || 'N/A',
+          earnings: `₹${ride.base_fare || 0}`,
+          rating: 4.9,
+          isRecurring: ride.ride_type === 'office',
+          car: { model: ride.vehicle_id?.model || 'Car', plate: ride.vehicle_id?.plateNumber || 'N/A' }
+        };
+      }));
+
+      // Transform ride requests to carpool format (as passenger)
+      const passengerCarpools = await Promise.all(rideRequests.filter(req => req.ride_id).map(async (req) => {
+        let pickupLoc = 'Pickup';
+        let dropLoc = 'Drop';
+
+        if (req.pickup_location) {
+          if (req.pickup_location.address && !req.pickup_location.address.startsWith('Location:')) {
+            pickupLoc = req.pickup_location.address;
+          } else if (req.pickup_location.lat && req.pickup_location.lng) {
+            try {
+              pickupLoc = await getShortAddress(req.pickup_location.lat, req.pickup_location.lng);
+            } catch (err) {
+              pickupLoc = `${req.pickup_location.lat.toFixed(4)}, ${req.pickup_location.lng.toFixed(4)}`;
+            }
+          }
+        }
+
+        if (req.drop_location) {
+          if (req.drop_location.address && !req.drop_location.address.startsWith('Location:')) {
+            dropLoc = req.drop_location.address;
+          } else if (req.drop_location.lat && req.drop_location.lng) {
+            try {
+              dropLoc = await getShortAddress(req.drop_location.lat, req.drop_location.lng);
+            } catch (err) {
+              dropLoc = `${req.drop_location.lat.toFixed(4)}, ${req.drop_location.lng.toFixed(4)}`;
+            }
+          }
+        }
+
+        return {
+          id: req._id,
+          status: req.status === 'accepted' ? 'active' : req.status === 'rejected' ? 'cancelled' : 'active',
+          type: 'passenger',
+          title: `${req.ride_id.ride_type || 'Carpool'} ${req.ride_id.ride_type === 'office' ? 'Commute' : 'Trip'}`,
+          route: `${pickupLoc} → ${dropLoc}`,
+          schedule: `${req.ride_id.start_time || 'N/A'}`,
+          driver: {
+            id: req.ride_id.driver_id?._id,
+            name: req.ride_id.driver_id?.name || 'Driver',
+            avatar: req.ride_id.driver_id?.profilePhoto || `https://ui-avatars.com/api/?name=${req.ride_id.driver_id?.name || 'D'}&background=random`,
+            rating: 4.8,
+            phone: req.ride_id.driver_id?.phone || 'N/A',
+            car: { 
+              model: req.ride_id.vehicle_id?.model || 'Car', 
+              plate: req.ride_id.vehicle_id?.plateNumber || 'N/A' 
+            }
+          },
+          coPassengers: [],
+          totalRides: 1,
+          nextRide: req.createdAt ? new Date(req.createdAt).toLocaleString('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          }) : req.ride_id.start_time || 'N/A',
+          spent: `₹${req.ride_id.base_fare || 0}`,
+          rating: 4.9,
+          isRecurring: req.ride_id.ride_type === 'office'
+        };
+      }));
+
+      const allCarpools = [...driverCarpools, ...passengerCarpools];
+      setCarpools(allCarpools);
+
+      // Calculate stats
+      const activeCarpools = allCarpools.filter(c => c.status === 'active').length;
+      const totalRides = allCarpools.reduce((sum, c) => sum + c.totalRides, 0);
+      const totalMoney = allCarpools
+        .filter(c => c.type === 'passenger')
+        .reduce((sum, c) => sum + parseInt(c.spent.replace('₹', '') || 0), 0);
+      
+      setStats([
+        { label: 'Active Carpools', value: activeCarpools.toString(), icon: Users, color: 'blue' },
+        { label: 'Total Rides', value: totalRides.toString(), icon: Car, color: 'teal' },
+        { label: 'Money Saved', value: `₹${totalMoney}`, icon: DollarSign, color: 'green' },
+        { label: 'Avg Rating', value: '4.9', icon: Star, color: 'yellow' },
+      ]);
+    } catch (error) {
+      console.error('Error fetching carpools:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredCarpools = carpools.filter(c => c.status === activeTab);
-
-  const stats = [
-    { label: 'Active Carpools', value: carpools.filter(c => c.status === 'active').length, icon: Users, color: 'blue' },
-    { label: 'Total Rides', value: '88', icon: Car, color: 'teal' },
-    { label: 'Money Saved', value: '₹10,950', icon: DollarSign, color: 'green' },
-    { label: 'Avg Rating', value: '4.9', icon: Star, color: 'yellow' },
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50">
@@ -198,7 +339,12 @@ const MyCarpools = () => {
 
         {/* Carpools List */}
         <div className="space-y-4 sm:space-y-6">
-          {filteredCarpools.length === 0 ? (
+          {loading ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-slate-600">Loading carpools...</p>
+            </div>
+          ) : filteredCarpools.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 text-center">
               <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="w-8 h-8 text-slate-400" />

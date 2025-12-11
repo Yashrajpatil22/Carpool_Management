@@ -25,6 +25,7 @@ import {
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { getShortAddress } from '../utils/geocode';
 
 const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -41,6 +42,57 @@ const Dashboard = () => {
   const [myRequests, setMyRequests] = useState([]);
   const [offeredRidesWithRequests, setOfferedRidesWithRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [geocodingLoading, setGeocodingLoading] = useState(false);
+
+  // Helper function to get readable location from coordinates
+  const getLocationName = async (location) => {
+    if (!location) return 'Unknown location';
+    
+    // If address is already available, use it
+    if (location.address) {
+      return location.address;
+    }
+    
+    // Otherwise, geocode the coordinates
+    if (location.lat && location.lng) {
+      try {
+        const address = await getShortAddress(location.lat, location.lng);
+        return address;
+      } catch (err) {
+        console.error('Geocoding error:', err);
+        return 'Unknown location';
+      }
+    }
+    
+    return 'Unknown location';
+  };
+
+  // Helper function to format date/time in IST
+  const formatDateTime = (dateTimeString) => {
+    if (!dateTimeString || dateTimeString === 'N/A') return 'N/A';
+    
+    try {
+      // Check if it's an ISO datetime string (contains T)
+      if (dateTimeString.includes('T')) {
+        const date = new Date(dateTimeString);
+        return date.toLocaleString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      
+      // If it's just a time string (HH:MM format)
+      return dateTimeString;
+    } catch (err) {
+      console.error('Date formatting error:', err);
+      return dateTimeString;
+    }
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -58,22 +110,35 @@ const Dashboard = () => {
   const fetchDashboardData = async (userData) => {
     try {
       setLoading(true);
+      const BASE_URL = import.meta.env.VITE_BASE_URL || import.meta.env.VITE_BASE_URL || 'http://localhost:7777';
       
       // Fetch user's offered rides
-      const offeredRidesRes = await axios.get(`http://localhost:7777/api/rides/getrides/my/${userData._id}`);
+      const offeredRidesRes = await axios.get(`${BASE_URL}/api/rides/getrides/my/${userData._id}`);
       const offeredRides = offeredRidesRes.data || [];
       
       // Fetch user's ride requests  
-      const requestsRes = await axios.get('http://localhost:7777/api/riderequest/viewrequest', {
+      const requestsRes = await axios.get(`${BASE_URL}/api/riderequest/viewrequest`, {
         headers: {
           'user-id': userData._id
         }
       });
       const rideRequests = requestsRes.data || [];
       console.log('My ride requests:', rideRequests);
+      console.log('Offered rides:', offeredRides);
       
       // Calculate stats with proper validation
-      const totalRides = (offeredRides.length || 0) + (rideRequests.length || 0);
+      // Count completed/active rides for driver (offered rides)
+      const completedOfferedRides = offeredRides.filter(ride => 
+        ride.status === 'completed' || ride.status === 'active'
+      ).length;
+      
+      // Count accepted/completed rides for passenger (ride requests)
+      const completedRideRequests = rideRequests.filter(req => 
+        req.status === 'accepted' || req.status === 'completed'
+      ).length;
+      
+      const totalRides = completedOfferedRides + completedRideRequests;
+      
       const avgRideCost = 50;
       const moneySaved = totalRides * avgRideCost;
       const co2PerRide = 2.5;
@@ -81,11 +146,35 @@ const Dashboard = () => {
       const hoursPerRide = 0.5;
       const hoursSaved = Math.round(totalRides * hoursPerRide) || 0;
       
+      // Get previous stats from localStorage to calculate percentage change
+      const previousStats = JSON.parse(localStorage.getItem('previousStats') || '{}');
+      
+      const calculateChange = (current, previous) => {
+        if (!previous || previous === 0) return current > 0 ? '+100%' : '+0%';
+        const change = ((current - previous) / previous) * 100;
+        const sign = change >= 0 ? '+' : '';
+        return `${sign}${Math.round(change)}%`;
+      };
+      
+      const ridesChange = calculateChange(totalRides, previousStats.totalRides || 0);
+      const moneyChange = calculateChange(moneySaved, previousStats.moneySaved || 0);
+      const co2Change = calculateChange(co2Reduced, previousStats.co2Reduced || 0);
+      const hoursChange = calculateChange(hoursSaved, previousStats.hoursSaved || 0);
+      
+      // Store current stats for next comparison
+      localStorage.setItem('previousStats', JSON.stringify({
+        totalRides,
+        moneySaved,
+        co2Reduced,
+        hoursSaved,
+        timestamp: Date.now()
+      }));
+      
       setStats([
-        { label: 'Total Rides', value: String(totalRides || 0), change: '+12%', icon: Car, color: 'from-blue-500 to-blue-600', bgColor: 'bg-blue-50' },
-        { label: 'Money Saved', value: `₹${moneySaved || 0}`, change: '+8%', icon: DollarSign, color: 'from-green-500 to-green-600', bgColor: 'bg-green-50' },
-        { label: 'CO₂ Reduced', value: `${co2Reduced} kg`, change: '+15%', icon: Leaf, color: 'from-teal-500 to-teal-600', bgColor: 'bg-teal-50' },
-        { label: 'Hours Saved', value: `${hoursSaved} hrs`, change: '+5%', icon: Clock, color: 'from-purple-500 to-purple-600', bgColor: 'bg-purple-50' },
+        { label: 'Total Rides', value: String(totalRides || 0), change: ridesChange, icon: Car, color: 'from-blue-500 to-blue-600', bgColor: 'bg-blue-50' },
+        { label: 'Money Saved', value: `₹${moneySaved || 0}`, change: moneyChange, icon: DollarSign, color: 'from-green-500 to-green-600', bgColor: 'bg-green-50' },
+        { label: 'CO₂ Reduced', value: `${co2Reduced} kg`, change: co2Change, icon: Leaf, color: 'from-teal-500 to-teal-600', bgColor: 'bg-teal-50' },
+        { label: 'Hours Saved', value: `${hoursSaved} hrs`, change: hoursChange, icon: Clock, color: 'from-purple-500 to-purple-600', bgColor: 'bg-purple-50' },
       ]);
       
       // Fetch suggested rides based on current time and office route
@@ -111,7 +200,7 @@ const Dashboard = () => {
       }
       
       if (searchLocation) {
-        const suggestedRes = await axios.post('http://localhost:7777/api/ridesuggestion/find', {
+        const suggestedRes = await axios.post(`${BASE_URL}/api/ridesuggestion/find`, {
           pickup_location: { lat: searchLocation.lat, lng: searchLocation.lng },
           radius: 5000
         });
@@ -145,29 +234,110 @@ const Dashboard = () => {
       // Set upcoming rides - combine user's offered rides and ride requests
       const upcomingArray = [];
       
+      // Show geocoding loader
+      setGeocodingLoading(true);
+      
       // Add ALL user's offered rides (as driver) - show active rides
-      const activeOfferedRides = (offeredRides || []).filter(ride => {
+      const activeOfferedRides = await Promise.all((offeredRides || []).filter(ride => {
         // Show active and pending rides (not completed or cancelled)
         return ride.status === 'active' || !ride.status;
-      }).map(ride => ({
-        type: 'Driving',
-        driver: 'You',
-        time: ride.start_time || 'N/A',
-        location: `${ride.start_location?.address || 'Start'} → ${ride.destination_location?.address || 'End'}`,
-        status: ride.status || 'active',
-        role: 'driver',
-        createdAt: ride.createdAt
+      }).map(async (ride) => {
+        console.log('Processing ride:', ride);
+        console.log('Start location:', ride.start_location);
+        console.log('Destination location:', ride.destination_location);
+        
+        let startLoc = 'Start';
+        let destLoc = 'End';
+        
+        // Try to get readable location names
+        if (ride.start_location) {
+          // Check if address exists and is NOT just coordinates
+          if (ride.start_location.address && 
+              !ride.start_location.address.startsWith('Location:') && 
+              !ride.start_location.address.match(/^\d+\.\d+,\s*\d+\.\d+$/)) {
+            startLoc = ride.start_location.address;
+            console.log('Using existing start address:', startLoc);
+          } else if (ride.start_location.lat && ride.start_location.lng) {
+            console.log('Geocoding start location:', ride.start_location.lat, ride.start_location.lng);
+            try {
+              const geocodedAddress = await getShortAddress(ride.start_location.lat, ride.start_location.lng);
+              console.log('Geocoded start address:', geocodedAddress);
+              startLoc = geocodedAddress || `${ride.start_location.lat.toFixed(4)}, ${ride.start_location.lng.toFixed(4)}`;
+            } catch (err) {
+              console.error('Error geocoding start location:', err);
+              startLoc = `${ride.start_location.lat.toFixed(4)}, ${ride.start_location.lng.toFixed(4)}`;
+            }
+          }
+        }
+        
+        if (ride.destination_location) {
+          // Check if address exists and is NOT just coordinates
+          if (ride.destination_location.address && 
+              !ride.destination_location.address.startsWith('Location:') && 
+              !ride.destination_location.address.match(/^\d+\.\d+,\s*\d+\.\d+$/)) {
+            destLoc = ride.destination_location.address;
+            console.log('Using existing destination address:', destLoc);
+          } else if (ride.destination_location.lat && ride.destination_location.lng) {
+            console.log('Geocoding destination location:', ride.destination_location.lat, ride.destination_location.lng);
+            try {
+              const geocodedAddress = await getShortAddress(ride.destination_location.lat, ride.destination_location.lng);
+              console.log('Geocoded destination address:', geocodedAddress);
+              destLoc = geocodedAddress || `${ride.destination_location.lat.toFixed(4)}, ${ride.destination_location.lng.toFixed(4)}`;
+            } catch (err) {
+              console.error('Error geocoding destination location:', err);
+              destLoc = `${ride.destination_location.lat.toFixed(4)}, ${ride.destination_location.lng.toFixed(4)}`;
+            }
+          }
+        }
+        
+        return {
+          type: 'Driving',
+          driver: 'You',
+          time: ride.start_time || 'N/A',
+          location: `${startLoc} → ${destLoc}`,
+          status: ride.status || 'active',
+          role: 'driver',
+          createdAt: ride.createdAt
+        };
       }));
       
       // Add ALL ride requests (as passenger) - show all statuses
-      const allRideRequests = (rideRequests || []).map(req => ({
-        type: 'Passenger',
-        driver: req.ride_id?.driver_id?.name || 'Driver',
-        time: req.ride_id?.start_time || 'N/A',
-        location: `${req.pickup_location?.address || 'Pickup'} → ${req.drop_location?.address || 'Drop'}`,
-        status: req.status || 'pending',
-        role: 'passenger',
-        createdAt: req.createdAt
+      const allRideRequests = await Promise.all((rideRequests || []).map(async (req) => {
+        let pickupLoc = 'Pickup';
+        let dropLoc = 'Drop';
+        
+        // Try to get readable location names
+        if (req.pickup_location?.address) {
+          pickupLoc = req.pickup_location.address;
+        } else if (req.pickup_location?.lat && req.pickup_location?.lng) {
+          try {
+            pickupLoc = await getLocationName(req.pickup_location);
+          } catch (err) {
+            console.error('Error geocoding pickup location:', err);
+            pickupLoc = `${req.pickup_location.lat}, ${req.pickup_location.lng}`;
+          }
+        }
+        
+        if (req.drop_location?.address) {
+          dropLoc = req.drop_location.address;
+        } else if (req.drop_location?.lat && req.drop_location?.lng) {
+          try {
+            dropLoc = await getLocationName(req.drop_location);
+          } catch (err) {
+            console.error('Error geocoding drop location:', err);
+            dropLoc = `${req.drop_location.lat}, ${req.drop_location.lng}`;
+          }
+        }
+        
+        return {
+          type: 'Passenger',
+          driver: req.ride_id?.driver_id?.name || 'Driver',
+          time: req.ride_id?.start_time || 'N/A',
+          location: `${pickupLoc} → ${dropLoc}`,
+          status: req.status || 'pending',
+          role: 'passenger',
+          createdAt: req.createdAt
+        };
       }));
       
       upcomingArray.push(...activeOfferedRides, ...allRideRequests);
@@ -188,7 +358,7 @@ const Dashboard = () => {
       const offeredWithReqs = [];
       for (const ride of offeredRides || []) {
         try {
-          const reqsRes = await axios.get(`http://localhost:7777/api/riderequest/ride/${ride._id}`, {
+          const reqsRes = await axios.get(`${BASE_URL}/api/riderequest/ride/${ride._id}`, {
             headers: {
               'user-id': userData._id
             }
@@ -222,6 +392,7 @@ const Dashboard = () => {
       ]);
     } finally {
       setLoading(false);
+      setGeocodingLoading(false);
     }
   };
 
@@ -249,8 +420,9 @@ const Dashboard = () => {
         return;
       }
       const user = JSON.parse(userData);
+      const BASE_URL = import.meta.env.VITE_BASE_URL || import.meta.env.VITE_BASE_URL || 'http://localhost:7777';
       
-      await axios.put(`http://localhost:7777/api/riderequest/${requestId}/accept`, {}, {
+      await axios.put(`${BASE_URL}/api/riderequest/${requestId}/accept`, {}, {
         headers: {
           'user-id': user._id
         }
@@ -272,8 +444,9 @@ const Dashboard = () => {
         return;
       }
       const user = JSON.parse(userData);
+      const BASE_URL = import.meta.env.VITE_BASE_URL || import.meta.env.VITE_BASE_URL || 'http://localhost:7777';
       
-      await axios.put(`http://localhost:7777/api/riderequest/${requestId}/reject`, {}, {
+      await axios.put(`${BASE_URL}/api/riderequest/${requestId}/reject`, {}, {
         headers: {
           'user-id': user._id
         }
@@ -410,15 +583,10 @@ const Dashboard = () => {
             </div>
 
             <div className="flex items-center space-x-3">
-              <button className="relative p-2 hover:bg-slate-100 rounded-lg transition">
+              <Link to="/notifications" className="relative p-2 hover:bg-slate-100 rounded-lg transition">
                 <Bell className="w-5 h-5 text-slate-600" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-              
-              <button className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-teal-600 text-white px-4 py-2 rounded-xl hover:shadow-lg transition">
-                <Plus className="w-4 h-4" />
-                <span className="font-medium">Request Ride</span>
-              </button>
+              </Link>
             </div>
           </div>
         </header>
@@ -456,21 +624,24 @@ const Dashboard = () => {
 
           {/* Stats Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-            {stats.map((stat, index) => (
-              <div key={index} className="bg-white rounded-2xl p-6 border border-slate-200 hover:shadow-lg transition">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`${stat.bgColor} p-3 rounded-xl`}>
-                    <stat.icon className={`w-6 h-6 bg-gradient-to-br ${stat.color} bg-clip-text text-transparent`} style={{WebkitTextFillColor: 'transparent'}} />
+            {stats.map((stat, index) => {
+              const IconComponent = stat.icon;
+              return (
+                <div key={index} className="bg-white rounded-2xl p-6 border border-slate-200 hover:shadow-lg transition">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color}`}>
+                      <IconComponent className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex items-center text-green-600 text-sm font-semibold">
+                      <TrendingUp className="w-4 h-4 mr-1" />
+                      {stat.change}
+                    </div>
                   </div>
-                  <div className="flex items-center text-green-600 text-sm font-semibold">
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                    {stat.change}
-                  </div>
+                  <div className="text-2xl font-bold text-slate-900 mb-1">{stat.value}</div>
+                  <div className="text-sm text-slate-600">{stat.label}</div>
                 </div>
-                <div className="text-2xl font-bold text-slate-900 mb-1">{stat.value}</div>
-                <div className="text-sm text-slate-600">{stat.label}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Offered Rides with Requests */}
@@ -615,6 +786,13 @@ const Dashboard = () => {
               <div className="bg-white rounded-2xl p-6 border border-slate-200">
                 <h3 className="text-xl font-bold text-slate-900 mb-4">My Rides</h3>
                 
+                {geocodingLoading && (
+                  <div className="flex items-center justify-center py-3 mb-4 bg-blue-50 rounded-lg">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
+                    <span className="text-sm text-blue-700 font-medium">Loading locations...</span>
+                  </div>
+                )}
+                
                 {upcomingRides.length === 0 ? (
                   <div className="text-center py-8">
                     <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
@@ -678,7 +856,7 @@ const Dashboard = () => {
                           </div>
                           <div className="text-sm text-slate-600 mb-1 flex items-center space-x-1">
                             <Clock className="w-3 h-3" />
-                            <span>{ride.time}</span>
+                            <span>{formatDateTime(ride.time)}</span>
                           </div>
                           <div className="text-sm text-slate-500 flex items-center space-x-1">
                             <MapPin className="w-3 h-3" />
