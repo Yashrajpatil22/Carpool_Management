@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Car, Mail, Lock, User, Phone, MapPin, ArrowRight, Chrome, Home, Briefcase, Navigation, Map } from 'lucide-react';
+import { Car, Mail, Lock, User, Phone, MapPin, ArrowRight, Chrome, Home, Briefcase, Navigation, Map, Camera, X } from 'lucide-react';
 import { useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -30,6 +30,7 @@ const Signup = () => {
   const [tempMarkerPosition, setTempMarkerPosition] = useState(null);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState(null);
   
   const [formData, setFormData] = useState({
     role: '',
@@ -38,6 +39,7 @@ const Signup = () => {
     phone: '',
     password: '',
     confirmPassword: '',
+    profilePhoto: '',
     // Location fields
     homeAddress: '',
     workAddress: '',
@@ -76,6 +78,36 @@ const Signup = () => {
     // Basic validation for Indian plate format
     const plateRegex = /^[A-Z]{2}\s?[0-9]{1,2}\s?[A-Z]{1,2}\s?[0-9]{1,4}$/i;
     return plateRegex.test(plate.replace(/\s/g, ''));
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        alert('File size should be less than 2MB');
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please upload an image file');
+        return;
+      }
+
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({...formData, profilePhoto: reader.result});
+        setProfilePhotoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePhoto = () => {
+    setFormData({...formData, profilePhoto: ''});
+    setProfilePhotoPreview(null);
   };
 
   const roles = [
@@ -218,6 +250,7 @@ const Signup = () => {
         email: formData.email,
         password: formData.password,
         phone: formData.phone,
+        profilePhoto: formData.profilePhoto,
         homeAddress: {
           address: formData.homeAddress,
           lat: formData.homeCoords?.lat || 0,
@@ -424,6 +457,46 @@ const Signup = () => {
                 </div>
 
                 <form onSubmit={handleNextToStep3} className="space-y-4">
+                  {/* Profile Photo Upload */}
+                  <div className="flex justify-center mb-6">
+                    <div className="relative">
+                      {profilePhotoPreview ? (
+                        <img 
+                          src={profilePhotoPreview} 
+                          alt="Profile Preview" 
+                          className="w-24 h-24 rounded-full object-cover border-4 border-blue-100"
+                        />
+                      ) : (
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-teal-100 flex items-center justify-center">
+                          <User className="w-12 h-12 text-blue-600" />
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        id="photoUpload"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="photoUpload"
+                        className="absolute bottom-0 right-0 bg-gradient-to-r from-blue-600 to-teal-600 text-white p-2 rounded-full cursor-pointer hover:shadow-lg transition"
+                      >
+                        <Camera className="w-4 h-4" />
+                      </label>
+                      {profilePhotoPreview && (
+                        <button
+                          type="button"
+                          onClick={removePhoto}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition"
+                          title="Remove photo"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Full Name

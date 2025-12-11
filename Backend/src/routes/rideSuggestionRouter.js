@@ -32,6 +32,47 @@ rideSuggestionRouter.post("/find", async (req, res) => {
         },
       },
       {
+        $lookup: {
+          from: "users", // MongoDB collection name (lowercase, plural)
+          localField: "driver_id",
+          foreignField: "_id",
+          as: "driver_info",
+        },
+      },
+      {
+        $unwind: {
+          path: "$driver_info",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "cars", // MongoDB collection name (lowercase, plural)
+          localField: "car_id",
+          foreignField: "_id",
+          as: "car_info",
+        },
+      },
+      {
+        $unwind: {
+          path: "$car_info",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          driver_id: "$driver_info",
+          car_id: "$car_info",
+        },
+      },
+      {
+        $project: {
+          driver_info: 0,
+          car_info: 0,
+          "driver_id.password": 0, // Exclude password from response
+        },
+      },
+      {
         $sort: { distance: 1, start_time: 1 },
       },
       {

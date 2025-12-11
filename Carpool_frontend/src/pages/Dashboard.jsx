@@ -205,9 +205,17 @@ const Dashboard = () => {
           {/* User Profile */}
           <div className="border-t border-slate-200 p-4">
             <div className={`flex items-center ${sidebarOpen ? 'space-x-3' : 'justify-center'}`}>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center text-white font-bold">
-                {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-              </div>
+              {user?.profilePhoto ? (
+                <img 
+                  src={user.profilePhoto} 
+                  alt="Profile" 
+                  className="w-10 h-10 rounded-full object-cover border-2 border-white shadow"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center text-white font-bold">
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
               {sidebarOpen && (
                 <div className="flex-1">
                   <div className="font-semibold text-slate-900 text-sm">{user?.name || 'User'}</div>
