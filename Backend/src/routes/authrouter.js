@@ -22,6 +22,7 @@ authRouter.post("/login", async (req, res) => {
     res.status(200).json({
       message: "Login successful",
       user: {
+        _id: user._id,
         id: user._id,
         name: user.name,
         email: user.email,
@@ -87,6 +88,7 @@ authRouter.post("/register", async (req, res) => {
           message: "User registered successfully",
           userId: user._id,
           user: {
+            _id: user._id,
             id: user._id,
             name: user.name,
             email: user.email,

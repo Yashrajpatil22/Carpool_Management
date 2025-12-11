@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Car, Mail, Lock, User, Phone, MapPin, ArrowRight, Chrome, Home, Briefcase, Navigation, Map, Camera, X } from 'lucide-react';
+import { Car, Mail, Lock, User, Phone, MapPin, ArrowRight, Chrome, Home, Briefcase, Navigation, Map, Camera, X, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -31,6 +31,8 @@ const Signup = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [profilePhotoPreview, setProfilePhotoPreview] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const [formData, setFormData] = useState({
     role: '',
@@ -564,15 +566,22 @@ const Signup = () => {
                     <div className="relative">
                       <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         value={formData.password}
                         onChange={(e) => setFormData({...formData, password: e.target.value})}
-                        className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:outline-none transition ${
+                        className={`w-full pl-12 pr-12 py-3 border-2 rounded-xl focus:outline-none transition ${
                           errors.password ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-blue-600'
                         }`}
                         placeholder="Create a strong password"
                         required
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
                     </div>
                     {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
                   </div>
@@ -584,15 +593,22 @@ const Signup = () => {
                     <div className="relative">
                       <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                       <input
-                        type="password"
+                        type={showConfirmPassword ? "text" : "password"}
                         value={formData.confirmPassword}
                         onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-                        className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:outline-none transition ${
+                        className={`w-full pl-12 pr-12 py-3 border-2 rounded-xl focus:outline-none transition ${
                           errors.confirmPassword ? 'border-red-500 focus:border-red-600' : 'border-slate-200 focus:border-blue-600'
                         }`}
                         placeholder="Confirm your password"
                         required
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
                     </div>
                     {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
                   </div>

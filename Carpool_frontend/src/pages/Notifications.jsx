@@ -1,371 +1,345 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Bell, 
-  CheckCheck, 
-  Trash2, 
+  CheckCircle, 
+  XCircle,
   Car, 
   Users, 
-  DollarSign, 
   MapPin, 
-  AlertCircle,
-  CheckCircle,
-  Info,
-  Gift,
-  TrendingUp,
-  Settings,
-  Filter
+  Clock,
+  User,
+  Check,
+  X,
+  Loader
 } from 'lucide-react';
+import axios from 'axios';
 
 const Notifications = () => {
-  const [filter, setFilter] = useState('all');
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: 'ride_match',
-      title: 'New Ride Match Found!',
-      message: 'Sarah Johnson\'s route matches yours 95%. Check it out!',
-      time: '5 minutes ago',
-      read: false,
-      icon: Car,
-      color: 'blue',
-      action: 'View Match'
-    },
-    {
-      id: 2,
-      type: 'ride_request',
-      title: 'Ride Request Received',
-      message: 'Michael Chen wants to join your carpool to Tech Park',
-      time: '15 minutes ago',
-      read: false,
-      icon: Users,
-      color: 'teal',
-      action: 'Review Request'
-    },
-    {
-      id: 3,
-      type: 'payment',
-      title: 'Payment Received',
-      message: 'You received ₹150.00 from Emma Davis for yesterday\'s ride',
-      time: '1 hour ago',
-      read: false,
-      icon: DollarSign,
-      color: 'green',
-      action: 'View Details'
-    },
-    {
-      id: 4,
-      type: 'reminder',
-      title: 'Upcoming Ride Reminder',
-      message: 'Your ride with John Smith starts in 30 minutes at Downtown',
-      time: '2 hours ago',
-      read: true,
-      icon: MapPin,
-      color: 'purple',
-      action: 'View Route'
-    },
-    {
-      id: 5,
-      type: 'system',
-      title: 'Profile Verification Complete',
-      message: 'Your profile has been verified! You can now offer rides.',
-      time: '3 hours ago',
-      read: true,
-      icon: CheckCircle,
-      color: 'green',
-      action: null
-    },
-    {
-      id: 6,
-      type: 'promo',
-      title: 'Special Offer: 20% Off',
-      message: 'Refer 3 friends and get 20% off your next 10 rides!',
-      time: '5 hours ago',
-      read: true,
-      icon: Gift,
-      color: 'pink',
-      action: 'Refer Now'
-    },
-    {
-      id: 7,
-      type: 'update',
-      title: 'Ride Status Update',
-      message: 'Your driver is 2 minutes away from your pickup location',
-      time: 'Yesterday',
-      read: true,
-      icon: TrendingUp,
-      color: 'blue',
-      action: null
-    },
-    {
-      id: 8,
-      type: 'alert',
-      title: 'Route Change Alert',
-      message: 'Traffic detected on your usual route. Alternative suggested.',
-      time: 'Yesterday',
-      read: true,
-      icon: AlertCircle,
-      color: 'yellow',
-      action: 'View Route'
-    },
-  ]);
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [rideRequests, setRideRequests] = useState([]);
+  const [processingId, setProcessingId] = useState(null);
+  const [error, setError] = useState('');
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  useEffect(() => {
+    fetchRideRequests();
+  }, []);
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  const fetchRideRequests = async () => {
+    try {
+      setLoading(true);
+      const userData = localStorage.getItem('user');
+      if (!userData) {
+        navigate('/login');
+        return;
+      }
+
+      const user = JSON.parse(userData);
+
+      // Fetch all rides offered by the user
+      const ridesRes = await axios.get(`http://localhost:7777/api/rides/getrides/my/${user._id}`);
+      const userRides = ridesRes.data || [];
+
+      // Fetch requests for each ride
+      const allRequests = [];
+      for (const ride of userRides) {
+        try {
+          const requestsRes = await axios.get(`http://localhost:7777/api/riderequest/ride/${ride._id}`, {
+            headers: {
+              'user-id': user._id
+            }
+          });
+          const requests = requestsRes.data || [];
+          
+          // Add ride info to each request
+          requests.forEach(req => {
+            allRequests.push({
+              ...req,
+              ride_info: ride
+            });
+          });
+        } catch (err) {
+          console.error(`Error fetching requests for ride ${ride._id}:`, err);
+        }
+      }
+
+      // Sort by request time, newest first
+      allRequests.sort((a, b) => new Date(b.request_time) - new Date(a.request_time));
+      
+      setRideRequests(allRequests);
+    } catch (err) {
+      console.error('Error fetching ride requests:', err);
+      setError('Failed to load notifications');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const markAsRead = (id) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
+  const handleAccept = async (requestId) => {
+    setProcessingId(requestId);
+    setError('');
+
+    try {
+      const userData = localStorage.getItem('user');
+      if (!userData) {
+        setError('Please login again');
+        return;
+      }
+      const user = JSON.parse(userData);
+      
+      await axios.put(`http://localhost:7777/api/riderequest/${requestId}/accept`, {}, {
+        headers: {
+          'user-id': user._id
+        }
+      });
+      
+      // Refresh the list
+      await fetchRideRequests();
+      
+    } catch (err) {
+      console.error('Error accepting request:', err);
+      setError(err.response?.data?.message || 'Failed to accept request');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
-  const deleteNotification = (id) => {
-    setNotifications(notifications.filter(n => n.id !== id));
+  const handleReject = async (requestId) => {
+    setProcessingId(requestId);
+    setError('');
+
+    try {
+      const userData = localStorage.getItem('user');
+      if (!userData) {
+        setError('Please login again');
+        return;
+      }
+      const user = JSON.parse(userData);
+      
+      await axios.put(`http://localhost:7777/api/riderequest/${requestId}/reject`, {}, {
+        headers: {
+          'user-id': user._id
+        }
+      });
+      
+      // Refresh the list
+      await fetchRideRequests();
+      
+    } catch (err) {
+      console.error('Error rejecting request:', err);
+      setError(err.response?.data?.message || 'Failed to reject request');
+    } finally {
+      setProcessingId(null);
+    }
   };
 
-  const filteredNotifications = filter === 'all' 
-    ? notifications 
-    : filter === 'unread' 
-    ? notifications.filter(n => !n.read)
-    : notifications.filter(n => n.type === filter);
-
-  const filters = [
-    { id: 'all', label: 'All', count: notifications.length },
-    { id: 'unread', label: 'Unread', count: unreadCount },
-    { id: 'ride_match', label: 'Matches', icon: Car },
-    { id: 'ride_request', label: 'Requests', icon: Users },
-    { id: 'payment', label: 'Payments', icon: DollarSign },
-  ];
-
-  const colorClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    teal: 'bg-teal-100 text-teal-600',
-    green: 'bg-green-100 text-green-600',
-    purple: 'bg-purple-100 text-purple-600',
-    pink: 'bg-pink-100 text-pink-600',
-    yellow: 'bg-yellow-100 text-yellow-600',
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString();
   };
 
-  const colorBorders = {
-    blue: 'border-blue-200',
-    teal: 'border-teal-200',
-    green: 'border-green-200',
-    purple: 'border-purple-200',
-    pink: 'border-pink-200',
-    yellow: 'border-yellow-200',
+  const getStatusBadge = (status) => {
+    const badges = {
+      pending: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: Clock, label: 'Pending' },
+      accepted: { color: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle, label: 'Accepted' },
+      rejected: { color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle, label: 'Rejected' },
+      cancelled: { color: 'bg-gray-100 text-gray-800 border-gray-200', icon: XCircle, label: 'Cancelled' }
+    };
+    
+    const badge = badges[status] || badges.pending;
+    const Icon = badge.icon;
+    
+    return (
+      <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-semibold border ${badge.color}`}>
+        <Icon className="w-3 h-3" />
+        <span>{badge.label}</span>
+      </span>
+    );
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-slate-600">Loading notifications...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link 
-                to="/dashboard" 
-                className="p-2 hover:bg-slate-100 rounded-lg transition"
-              >
-                <ArrowLeft className="w-5 h-5 text-slate-600" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 flex items-center space-x-2">
-                  <Bell className="w-6 h-6" />
-                  <span>Notifications</span>
-                  {unreadCount > 0 && (
-                    <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                      {unreadCount}
-                    </span>
-                  )}
-                </h1>
-                <p className="text-sm text-slate-600">Stay updated with your carpool activity</p>
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+          <div className="flex items-center space-x-4">
+            <Link 
+              to="/dashboard" 
+              className="p-2 hover:bg-slate-100 rounded-lg transition"
+            >
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
+            </Link>
+            <div className="flex-1">
+              <div className="flex items-center space-x-3">
+                <div className="bg-gradient-to-br from-blue-500 to-teal-500 p-2 rounded-xl">
+                  <Bell className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">Notifications</h1>
+                  <p className="text-sm text-slate-600">
+                    {rideRequests.filter(r => r.status === 'pending').length} pending request{rideRequests.filter(r => r.status === 'pending').length !== 1 ? 's' : ''}
+                  </p>
+                </div>
               </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              {unreadCount > 0 && (
-                <button 
-                  onClick={markAllAsRead}
-                  className="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-medium hover:bg-slate-200 transition flex items-center space-x-2"
-                >
-                  <CheckCheck className="w-4 h-4" />
-                  <span className="hidden sm:inline">Mark All Read</span>
-                </button>
-              )}
-              <Link
-                to="/settings"
-                className="p-2 hover:bg-slate-100 rounded-lg transition"
-              >
-                <Settings className="w-5 h-5 text-slate-600" />
-              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        {/* Filters */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-6">
-          <div className="flex items-center space-x-2 overflow-x-auto scrollbar-hide">
-            <Filter className="w-5 h-5 text-slate-400 flex-shrink-0" />
-            {filters.map((filterItem) => (
-              <button
-                key={filterItem.id}
-                onClick={() => setFilter(filterItem.id)}
-                className={`px-4 py-2 rounded-xl font-medium transition whitespace-nowrap flex items-center space-x-2 ${
-                  filter === filterItem.id
-                    ? 'bg-gradient-to-r from-blue-600 to-teal-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+      {/* Error Message */}
+      {error && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-6">
+          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 flex items-start space-x-3">
+            <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-red-900">Error</h4>
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notifications List */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+        {rideRequests.length === 0 ? (
+          <div className="bg-white rounded-2xl border-2 border-slate-200 p-12 text-center">
+            <Bell className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-slate-900 mb-2">No Notifications</h2>
+            <p className="text-slate-600 mb-6">
+              You don't have any ride requests yet. Once passengers request to join your rides, they'll appear here.
+            </p>
+            <Link
+              to="/offer-ride"
+              className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition"
+            >
+              <Car className="w-5 h-5" />
+              <span>Offer a Ride</span>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {rideRequests.map((request) => (
+              <div 
+                key={request._id}
+                className="bg-white rounded-2xl border-2 border-slate-200 p-6 hover:shadow-lg transition"
               >
-                {filterItem.icon && <filterItem.icon className="w-4 h-4" />}
-                <span>{filterItem.label}</span>
-                {filterItem.count !== undefined && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    filter === filterItem.id ? 'bg-white/20' : 'bg-slate-200'
-                  }`}>
-                    {filterItem.count}
-                  </span>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start space-x-4 flex-1">
+                    <div className="bg-gradient-to-br from-blue-100 to-teal-100 p-3 rounded-xl">
+                      <Users className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-lg font-bold text-slate-900">New Ride Request</h3>
+                        {getStatusBadge(request.status)}
+                      </div>
+                      <p className="text-sm text-slate-600 mb-1">
+                        <span className="font-semibold">{request.passenger_id?.name || 'Passenger'}</span> wants to join your ride
+                      </p>
+                      <p className="text-xs text-slate-500">{formatTime(request.request_time)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ride Details */}
+                <div className="bg-slate-50 rounded-xl p-4 mb-4 space-y-3">
+                  <div className="flex items-start space-x-3">
+                    <Car className="w-5 h-5 text-slate-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-slate-900">Your Ride</p>
+                      <p className="text-xs text-slate-600">
+                        {new Date(request.ride_info?.date).toLocaleDateString()} at {request.ride_info?.start_time}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3">
+                    <MapPin className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-slate-900">Passenger Route</p>
+                      <p className="text-xs text-slate-600">
+                        From: {request.pickup_location?.address || 'Pickup location'}
+                      </p>
+                      <p className="text-xs text-slate-600">
+                        To: {request.drop_location?.address || 'Drop location'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3">
+                    <User className="w-5 h-5 text-teal-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-slate-900">Passenger Info</p>
+                      <p className="text-xs text-slate-600">
+                        {request.passenger_id?.name || 'N/A'} • {request.passenger_id?.phone || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons - Only show for pending requests */}
+                {request.status === 'pending' && (
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => handleAccept(request._id)}
+                      disabled={processingId === request._id}
+                      className="flex-1 bg-gradient-to-r from-green-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                    >
+                      {processingId === request._id ? (
+                        <Loader className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <Check className="w-5 h-5" />
+                          <span>Accept</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleReject(request._id)}
+                      disabled={processingId === request._id}
+                      className="flex-1 bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                    >
+                      {processingId === request._id ? (
+                        <Loader className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <X className="w-5 h-5" />
+                          <span>Reject</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 )}
-              </button>
+              </div>
             ))}
           </div>
-        </div>
-
-        {/* Notifications List */}
-        <div className="space-y-3">
-          {filteredNotifications.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-              <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Bell className="w-8 h-8 text-slate-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">No Notifications</h3>
-              <p className="text-slate-600">You're all caught up! Check back later for updates.</p>
-            </div>
-          ) : (
-            filteredNotifications.map((notification) => (
-              <div
-                key={notification.id}
-                className={`bg-white rounded-2xl border-2 ${
-                  notification.read ? 'border-slate-200' : colorBorders[notification.color]
-                } p-4 sm:p-5 hover:shadow-lg transition ${
-                  !notification.read ? 'bg-blue-50/30' : ''
-                }`}
-              >
-                <div className="flex items-start space-x-4">
-                  {/* Icon */}
-                  <div className={`${colorClasses[notification.color]} p-3 rounded-xl flex-shrink-0`}>
-                    <notification.icon className="w-6 h-6" />
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-slate-900 mb-1 flex items-center space-x-2">
-                          <span>{notification.title}</span>
-                          {!notification.read && (
-                            <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
-                          )}
-                        </h3>
-                        <p className="text-slate-600 text-sm">{notification.message}</p>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center space-x-1 sm:space-x-2 ml-2 sm:ml-4">
-                        {!notification.read && (
-                          <button
-                            onClick={() => markAsRead(notification.id)}
-                            className="p-2 hover:bg-slate-100 rounded-lg transition"
-                            title="Mark as read"
-                          >
-                            <CheckCheck className="w-4 h-4 text-slate-400" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => deleteNotification(notification.id)}
-                          className="p-2 hover:bg-red-50 rounded-lg transition"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4 text-slate-400 hover:text-red-600" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between mt-3">
-                      <span className="text-xs text-slate-500">{notification.time}</span>
-                      {notification.action && (
-                        <button className="text-blue-600 hover:text-blue-700 font-semibold text-sm flex items-center space-x-1">
-                          <span>{notification.action}</span>
-                          <span>→</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Load More */}
-        {filteredNotifications.length > 0 && (
-          <div className="mt-6 text-center">
-            <button className="bg-white text-slate-600 px-6 py-3 rounded-xl font-semibold border-2 border-slate-200 hover:border-blue-600 hover:text-blue-600 transition">
-              Load More Notifications
-            </button>
-          </div>
         )}
-      </div>
-
-      {/* Quick Stats */}
-      <div className="max-w-5xl mx-auto px-6 pb-8">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-slate-900">{unreadCount}</div>
-                <div className="text-sm text-slate-600">Unread</div>
-              </div>
-              <div className="bg-blue-100 p-3 rounded-xl">
-                <Bell className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-slate-900">
-                  {notifications.filter(n => n.type === 'ride_match').length}
-                </div>
-                <div className="text-sm text-slate-600">New Matches</div>
-              </div>
-              <div className="bg-teal-100 p-3 rounded-xl">
-                <Car className="w-6 h-6 text-teal-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-bold text-slate-900">
-                  {notifications.filter(n => n.type === 'ride_request').length}
-                </div>
-                <div className="text-sm text-slate-600">Pending Requests</div>
-              </div>
-              <div className="bg-purple-100 p-3 rounded-xl">
-                <Users className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

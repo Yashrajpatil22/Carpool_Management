@@ -11,6 +11,7 @@ import SuggestedRides from './pages/SuggestedRides';
 import LiveTracking from './pages/LiveTracking';
 import OfferRide from './pages/OfferRide';
 import FindRide from './pages/FindRide';
+import MyRequests from './pages/MyRequests';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         <Route path="/tracking" element={<LiveTracking />} />
         <Route path="/offer-ride" element={<OfferRide />} />
         <Route path="/find-ride" element={<FindRide />} />
+        <Route path="/my-requests" element={<MyRequests />} />
       </Routes>
     </Router>
   );

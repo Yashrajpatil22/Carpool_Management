@@ -38,20 +38,48 @@ const SuggestedRides = () => {
       }
 
       const user = JSON.parse(userData);
+
+      // Validate pickup and drop locations
+      if (!searchData?.sourceCoords || !searchData?.destCoords) {
+        setError('Missing location data. Please search for rides again.');
+        setRequestingRideId(null);
+        return;
+      }
       
-      await axios.post('http://localhost:7777/api/riderequest/create', {
+      const response = await axios.post('http://localhost:7777/api/riderequest/createrequest', {
         ride_id: rideId,
-        passenger_id: user._id,
-        pickup_location: searchData.sourceCoords,
-        dropoff_location: searchData.destCoords,
-        requested_seats: searchData.passengers
+        pickup_location: {
+          lat: searchData.sourceCoords.lat,
+          lng: searchData.sourceCoords.lng,
+          address: searchData.source || ''
+        },
+        drop_location: {
+          lat: searchData.destCoords.lat,
+          lng: searchData.destCoords.lng,
+          address: searchData.destination || ''
+        },
+        fare_offered: null // Optional: passenger can offer a fare
+      }, {
+        headers: {
+          'user-id': user._id
+        }
       });
 
-      setSuccess('Ride request sent successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+      setSuccess(response.data.message || 'Ride request sent successfully! Waiting for driver approval.');
+      setTimeout(() => {
+        setSuccess('');
+        // Optionally navigate to requests page
+        // navigate('/my-requests');
+      }, 3000);
     } catch (err) {
       console.error('Request ride error:', err);
-      setError(err.response?.data?.message || 'Failed to request ride. Please try again.');
+      console.error('Error response:', err.response);
+      console.error('Error data:', err.response?.data);
+      const errorMsg = err.response?.data?.message 
+        || (typeof err.response?.data === 'string' ? err.response?.data : '')
+        || err.message 
+        || 'Failed to request ride. Please try again.';
+      setError(errorMsg);
     } finally {
       setRequestingRideId(null);
     }
