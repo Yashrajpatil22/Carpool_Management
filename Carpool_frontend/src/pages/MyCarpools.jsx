@@ -81,11 +81,11 @@ const MyCarpools = () => {
       const userId = user._id;
 
       // Fetch offered rides (as driver)
-      const offeredRes = await axios.get(`http://localhost:7777/api/rides/getrides/my/${userId}`);
+      const offeredRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/rides/getrides/my/${userId}`);
       const offeredRides = offeredRes.data || [];
 
       // Fetch ride requests (as passenger)
-      const requestsRes = await axios.get('http://localhost:7777/api/riderequest/viewrequest', {
+      const requestsRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/viewrequest`, {
         headers: { 'user-id': userId }
       });
       const rideRequests = requestsRes.data || [];
@@ -126,7 +126,7 @@ const MyCarpools = () => {
         // Fetch passengers for this ride
         let passengers = [];
         try {
-          const passengersRes = await axios.get(`http://localhost:7777/api/riderequest/ride/${ride._id}`, {
+          const passengersRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/ride/${ride._id}`, {
             headers: { 'user-id': userId }
           });
           const requests = passengersRes.data || [];

@@ -110,13 +110,14 @@ const Dashboard = () => {
   const fetchDashboardData = async (userData) => {
     try {
       setLoading(true);
+      const BASE_URL = import.meta.env.VITE_BASE_URL || import.meta.env.VITE_BASE_URL || 'http://localhost:7777';
       
       // Fetch user's offered rides
-      const offeredRidesRes = await axios.get(`http://localhost:7777/api/rides/getrides/my/${userData._id}`);
+      const offeredRidesRes = await axios.get(`${BASE_URL}/api/rides/getrides/my/${userData._id}`);
       const offeredRides = offeredRidesRes.data || [];
       
       // Fetch user's ride requests  
-      const requestsRes = await axios.get('http://localhost:7777/api/riderequest/viewrequest', {
+      const requestsRes = await axios.get(`${BASE_URL}/api/riderequest/viewrequest`, {
         headers: {
           'user-id': userData._id
         }
@@ -199,7 +200,7 @@ const Dashboard = () => {
       }
       
       if (searchLocation) {
-        const suggestedRes = await axios.post('http://localhost:7777/api/ridesuggestion/find', {
+        const suggestedRes = await axios.post(`${BASE_URL}/api/ridesuggestion/find`, {
           pickup_location: { lat: searchLocation.lat, lng: searchLocation.lng },
           radius: 5000
         });
@@ -357,7 +358,7 @@ const Dashboard = () => {
       const offeredWithReqs = [];
       for (const ride of offeredRides || []) {
         try {
-          const reqsRes = await axios.get(`http://localhost:7777/api/riderequest/ride/${ride._id}`, {
+          const reqsRes = await axios.get(`${BASE_URL}/api/riderequest/ride/${ride._id}`, {
             headers: {
               'user-id': userData._id
             }
@@ -419,8 +420,9 @@ const Dashboard = () => {
         return;
       }
       const user = JSON.parse(userData);
+      const BASE_URL = import.meta.env.VITE_BASE_URL || import.meta.env.VITE_BASE_URL || 'http://localhost:7777';
       
-      await axios.put(`http://localhost:7777/api/riderequest/${requestId}/accept`, {}, {
+      await axios.put(`${BASE_URL}/api/riderequest/${requestId}/accept`, {}, {
         headers: {
           'user-id': user._id
         }
@@ -442,8 +444,9 @@ const Dashboard = () => {
         return;
       }
       const user = JSON.parse(userData);
+      const BASE_URL = import.meta.env.VITE_BASE_URL || import.meta.env.VITE_BASE_URL || 'http://localhost:7777';
       
-      await axios.put(`http://localhost:7777/api/riderequest/${requestId}/reject`, {}, {
+      await axios.put(`${BASE_URL}/api/riderequest/${requestId}/reject`, {}, {
         headers: {
           'user-id': user._id
         }

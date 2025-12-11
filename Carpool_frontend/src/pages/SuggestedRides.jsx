@@ -46,7 +46,7 @@ const SuggestedRides = () => {
         return;
       }
       
-      const response = await axios.post('http://localhost:7777/api/riderequest/createrequest', {
+      const response = await axios.post(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/createrequest`, {
         ride_id: rideId,
         pickup_location: {
           lat: searchData.sourceCoords.lat,

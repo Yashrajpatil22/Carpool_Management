@@ -100,11 +100,11 @@ const LiveTracking = () => {
       let rideData = null;
 
       if (rideId) {
-        const rideRes = await axios.get(`http://localhost:7777/api/rides/getrides/${rideId}`);
+        const rideRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/rides/getrides/${rideId}`);
         rideData = rideRes.data;
       } else {
         // Fetch user's active rides
-        const ridesRes = await axios.get(`http://localhost:7777/api/rides/getrides/my/${userId}`);
+        const ridesRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/rides/getrides/my/${userId}`);
         const rides = ridesRes.data || [];
         const activeRides = rides.filter(r => r.status === 'active');
         
@@ -112,7 +112,7 @@ const LiveTracking = () => {
           rideData = activeRides[0];
         } else {
           // If no active rides as driver, check ride requests
-          const requestsRes = await axios.get('http://localhost:7777/api/riderequest/viewrequest', {
+          const requestsRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/viewrequest`, {
             headers: { 'user-id': userId }
           });
           const requests = requestsRes.data || [];
@@ -178,7 +178,7 @@ const LiveTracking = () => {
       // Fetch passengers for this ride
       let passengers = [];
       try {
-        const passengersRes = await axios.get(`http://localhost:7777/api/riderequest/ride/${rideData._id}`, {
+        const passengersRes = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/ride/${rideData._id}`, {
           headers: { 'user-id': userId }
         });
         const requests = passengersRes.data || [];

@@ -116,7 +116,7 @@ const Settings = () => {
         profilePhoto: formData.profilePhoto
       };
 
-      const response = await fetch(`http://localhost:7777/api/user/${user.id}`, {
+      const response = await fetch(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/user/${user.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

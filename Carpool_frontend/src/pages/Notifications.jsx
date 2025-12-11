@@ -41,7 +41,7 @@ const Notifications = () => {
 
       // Fetch all rides offered by the user
       const ridesRes = await axios.get(
-        `http://localhost:7777/api/rides/getrides/my/${user._id}`
+        `${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/rides/getrides/my/${user._id}`
       );
       const userRides = ridesRes.data || [];
 
@@ -50,7 +50,7 @@ const Notifications = () => {
       for (const ride of userRides) {
         try {
           const requestsRes = await axios.get(
-            `http://localhost:7777/api/riderequest/ride/${ride._id}`,
+            `${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/ride/${ride._id}`,
             {
               headers: {
                 "user-id": user._id,
@@ -136,7 +136,7 @@ const Notifications = () => {
       const user = JSON.parse(userData);
 
       await axios.put(
-        `http://localhost:7777/api/riderequest/${requestId}/accept`,
+        `${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/${requestId}/accept`,
         {},
         {
           headers: {
@@ -168,7 +168,7 @@ const Notifications = () => {
       const user = JSON.parse(userData);
 
       await axios.put(
-        `http://localhost:7777/api/riderequest/${requestId}/reject`,
+        `${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/${requestId}/reject`,
         {},
         {
           headers: {

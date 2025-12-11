@@ -41,7 +41,7 @@ const MyRequests = () => {
       const user = JSON.parse(userData);
       console.log('Fetching requests for user:', user._id);
       
-      const response = await axios.get('http://localhost:7777/api/riderequest/viewrequest', {
+      const response = await axios.get(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/viewrequest`, {
         headers: {
           'user-id': user._id
         }
@@ -66,7 +66,7 @@ const MyRequests = () => {
       const userData = localStorage.getItem('user');
       const user = JSON.parse(userData);
 
-      await axios.delete(`http://localhost:7777/api/riderequest/${requestId}`, {
+      await axios.delete(`${import.meta.env.VITE_BASE_URL || 'http://localhost:7777'}/api/riderequest/${requestId}`, {
         headers: {
           'user-id': user._id
         }
