@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   User, 
   Bell, 
@@ -20,13 +20,21 @@ import {
   Plus,
   Edit,
   Upload,
-  X
+  X,
+  Clock,
+  Briefcase,
+  Home
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [darkMode, setDarkMode] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
+  
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
@@ -35,12 +43,154 @@ const Settings = () => {
     promotions: false
   });
 
-  const [profile, setProfile] = useState({
-    name: 'Alex Morgan',
-    email: 'alex@example.com',
-    phone: '+1 (555) 123-4567',
-    bio: 'Regular commuter, prefer quiet rides'
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    homeAddress: '',
+    workAddress: '',
+    toOfficeTime: '',
+    fromOfficeTime: '',
+    workingDays: [],
+    profilePhoto: ''
   });
+
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState(null);
+
+  // Load user data on component mount
+  useEffect(() => {
+    const loadUserData = () => {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+          setFormData({
+            name: userData.name || '',
+            phone: userData.phone || '',
+            homeAddress: userData.home_address?.address || '',
+            workAddress: userData.work_address?.address || '',
+            toOfficeTime: userData.toOfficeTime || '',
+            fromOfficeTime: userData.fromOfficeTime || '',
+            workingDays: userData.workingDays || [],
+            profilePhoto: userData.profilePhoto || ''
+          });
+          // Set initial profile photo preview
+          if (userData.profilePhoto) {
+            setProfilePhotoPreview(userData.profilePhoto);
+          }
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
+      setLoading(false);
+    };
+    loadUserData();
+  }, []);
+
+  const handleSaveProfile = async () => {
+    if (!user?.id) {
+      setMessage({ type: 'error', text: 'User not found. Please login again.' });
+      return;
+    }
+
+    setSaving(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const updatePayload = {
+        name: formData.name,
+        phone: formData.phone,
+        home_address: {
+          address: formData.homeAddress,
+          lat: user.home_address?.lat || 0,
+          lng: user.home_address?.lng || 0
+        },
+        work_address: {
+          address: formData.workAddress,
+          lat: user.work_address?.lat || 0,
+          lng: user.work_address?.lng || 0
+        },
+        toOfficeTime: formData.toOfficeTime,
+        fromOfficeTime: formData.fromOfficeTime,
+        workingDays: formData.workingDays,
+        profilePhoto: formData.profilePhoto
+      };
+
+      const response = await fetch(`http://localhost:7777/api/user/${user.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatePayload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Update failed');
+      }
+
+      // Update localStorage with new user data
+      const updatedUser = { ...user, ...data.user };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      
+      // Update profile photo preview if changed
+      if (data.user.profilePhoto) {
+        setProfilePhotoPreview(data.user.profilePhoto);
+      }
+
+      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      
+      // Clear message after 3 seconds
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+
+    } catch (error) {
+      console.error('Update profile error:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to update profile. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleWorkingDayToggle = (day) => {
+    const updatedDays = formData.workingDays.includes(day)
+      ? formData.workingDays.filter(d => d !== day)
+      : [...formData.workingDays, day];
+    setFormData({...formData, workingDays: updatedDays});
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        setMessage({ type: 'error', text: 'Image size should be less than 2MB' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setMessage({ type: 'error', text: 'Please select a valid image file' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result;
+        setFormData({...formData, profilePhoto: base64String});
+        setProfilePhotoPreview(base64String);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePhoto = () => {
+    setFormData({...formData, profilePhoto: ''});
+    setProfilePhotoPreview(null);
+  };
 
   const [vehicles, setVehicles] = useState([
     {
@@ -149,119 +299,253 @@ const Settings = () => {
                 <div className="space-y-6">
                   <div>
                     <h2 className="text-xl font-bold text-slate-900 mb-2">Profile Information</h2>
-                    <p className="text-slate-600">Update your personal information and profile picture</p>
+                    <p className="text-slate-600">Update your personal information and commute details</p>
                   </div>
 
+                  {/* Success/Error Message */}
+                  {message.text && (
+                    <div className={`px-4 py-3 rounded-xl flex items-center space-x-2 ${
+                      message.type === 'success' 
+                        ? 'bg-green-50 border border-green-200 text-green-700' 
+                        : 'bg-red-50 border border-red-200 text-red-700'
+                    }`}>
+                      {message.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                      <span>{message.text}</span>
+                    </div>
+                  )}
+
                   {/* Profile Picture */}
-                  <div className="flex items-center space-x-6">
+                  <div className="flex items-center space-x-6 pb-6 border-b border-slate-200">
                     <div className="relative">
-                      <img 
-                        src="https://i.pravatar.cc/150?img=4" 
-                        alt="Profile" 
-                        className="w-24 h-24 rounded-full border-4 border-slate-100"
+                      {profilePhotoPreview ? (
+                        <img 
+                          src={profilePhotoPreview} 
+                          alt="Profile" 
+                          className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                        />
+                      ) : (
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-teal-500 flex items-center justify-center text-white text-3xl font-bold">
+                          {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        id="profilePhotoUpload"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                        className="hidden"
                       />
-                      <button className="absolute bottom-0 right-0 bg-gradient-to-r from-blue-600 to-teal-600 text-white p-2 rounded-full hover:shadow-lg transition">
+                      <label 
+                        htmlFor="profilePhotoUpload"
+                        className="absolute bottom-0 right-0 bg-gradient-to-r from-blue-600 to-teal-600 text-white p-2 rounded-full hover:shadow-lg transition cursor-pointer"
+                      >
                         <Camera className="w-4 h-4" />
-                      </button>
+                      </label>
                     </div>
                     <div>
                       <h3 className="font-semibold text-slate-900 mb-1">Profile Photo</h3>
-                      <p className="text-sm text-slate-600 mb-3">Upload a new profile picture</p>
+                      <p className="text-sm text-slate-600 mb-3">Upload a new profile picture (Max 2MB)</p>
                       <div className="flex space-x-2">
-                        <button className="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 transition">
+                        <label
+                          htmlFor="profilePhotoUpload"
+                          className="bg-gradient-to-r from-blue-600 to-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:shadow-lg transition cursor-pointer"
+                        >
                           Upload New
-                        </button>
-                        <button className="text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-50 transition">
-                          Remove
-                        </button>
+                        </label>
+                        {profilePhotoPreview && (
+                          <button 
+                            onClick={removePhoto}
+                            className="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-200 transition flex items-center space-x-1"
+                          >
+                            <X className="w-4 h-4" />
+                            <span>Remove</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Full Name
-                      </label>
-                      <div className="relative">
-                        <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                        <input
-                          type="text"
-                          value={profile.name}
-                          onChange={(e) => setProfile({...profile, name: e.target.value})}
-                          className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Email Address
-                      </label>
-                      <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                        <input
-                          type="email"
-                          value={profile.email}
-                          onChange={(e) => setProfile({...profile, email: e.target.value})}
-                          className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Phone Number
-                      </label>
-                      <div className="relative">
-                        <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                        <input
-                          type="tel"
-                          value={profile.phone}
-                          onChange={(e) => setProfile({...profile, phone: e.target.value})}
-                          className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Location
-                      </label>
-                      <div className="relative">
-                        <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-                        <input
-                          type="text"
-                          placeholder="City, State"
-                          className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
+                  {/* Basic Info */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Bio
-                    </label>
-                    <textarea
-                      value={profile.bio}
-                      onChange={(e) => setProfile({...profile, bio: e.target.value})}
-                      rows={4}
-                      className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition resize-none"
-                      placeholder="Tell others about yourself..."
-                    />
-                    <p className="text-sm text-slate-500 mt-2">Brief description for your profile. Max 200 characters.</p>
-                  </div>
+                    <h3 className="font-semibold text-slate-900 mb-4">Basic Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Full Name *
+                        </label>
+                        <div className="relative">
+                          <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                          <input
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({...formData, name: e.target.value})}
+                            className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                            placeholder="Enter your full name"
+                          />
+                        </div>
+                      </div>
 
-                  {/* Verification Status */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <div className="flex items-start space-x-3">
-                      <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-blue-900 mb-1">Verified Account</h4>
-                        <p className="text-sm text-blue-700">Your email and phone number are verified. This helps build trust with other users.</p>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Email Address
+                        </label>
+                        <div className="relative">
+                          <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                          <input
+                            type="email"
+                            value={user?.email || ''}
+                            disabled
+                            className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-slate-500 cursor-not-allowed"
+                          />
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">Email cannot be changed</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Phone Number *
+                        </label>
+                        <div className="relative">
+                          <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                          <input
+                            type="tel"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                            className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                            placeholder="+91 98765 43210"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          User Type
+                        </label>
+                        <div className="relative">
+                          <Car className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                          <input
+                            type="text"
+                            value={user?.type ? user.type.charAt(0).toUpperCase() + user.type.slice(1) : ''}
+                            disabled
+                            className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-slate-500 cursor-not-allowed"
+                          />
+                        </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Location Info */}
+                  <div className="pt-6 border-t border-slate-200">
+                    <h3 className="font-semibold text-slate-900 mb-4">Commute Locations</h3>
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Home Address *
+                        </label>
+                        <div className="relative">
+                          <Home className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                          <input
+                            type="text"
+                            value={formData.homeAddress}
+                            onChange={(e) => setFormData({...formData, homeAddress: e.target.value})}
+                            className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                            placeholder="Enter your home address"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Work Address *
+                        </label>
+                        <div className="relative">
+                          <Briefcase className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                          <input
+                            type="text"
+                            value={formData.workAddress}
+                            onChange={(e) => setFormData({...formData, workAddress: e.target.value})}
+                            className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                            placeholder="Enter your work address"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Schedule Info */}
+                  <div className="pt-6 border-t border-slate-200">
+                    <h3 className="font-semibold text-slate-900 mb-4">Commute Schedule</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          To Office Time *
+                        </label>
+                        <div className="relative">
+                          <Clock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                          <input
+                            type="time"
+                            value={formData.toOfficeTime}
+                            onChange={(e) => setFormData({...formData, toOfficeTime: e.target.value})}
+                            className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          From Office Time *
+                        </label>
+                        <div className="relative">
+                          <Clock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                          <input
+                            type="time"
+                            value={formData.fromOfficeTime}
+                            onChange={(e) => setFormData({...formData, fromOfficeTime: e.target.value})}
+                            className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none transition"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Working Days *
+                      </label>
+                      <div className="grid grid-cols-7 gap-2">
+                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
+                          const shortDay = day.substring(0, 3);
+                          const isSelected = formData.workingDays.includes(day);
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => handleWorkingDayToggle(day)}
+                              className={`py-2 px-1 rounded-lg text-sm font-medium transition ${
+                                isSelected
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-blue-600'
+                              }`}
+                            >
+                              {shortDay}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="pt-6 border-t border-slate-200">
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={saving}
+                      className={`bg-gradient-to-r from-blue-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition flex items-center space-x-2 ${
+                        saving ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      <Save className="w-5 h-5" />
+                      <span>{saving ? 'Saving...' : 'Save Changes'}</span>
+                    </button>
                   </div>
                 </div>
               )}

@@ -31,7 +31,8 @@ authRouter.post("/login", async (req, res) => {
         work_address: user.work_address,
         toOfficeTime: user.toOfficeTime,
         fromOfficeTime: user.fromOfficeTime,
-        workingDays: user.workingDays
+        workingDays: user.workingDays,
+        profilePhoto: user.profilePhoto
       }
     });
 
@@ -48,6 +49,7 @@ authRouter.post("/register", async (req, res) => {
           email,
           password,
           phone,
+          profilePhoto,
           homeAddress,
           workAddress,
           toOfficeTime,
@@ -69,6 +71,7 @@ authRouter.post("/register", async (req, res) => {
           email,
           password: hashedPassword,
           phone,
+          profilePhoto: profilePhoto || '',
           home_address: homeAddress,
           work_address: workAddress,
           toOfficeTime,
@@ -88,7 +91,13 @@ authRouter.post("/register", async (req, res) => {
             name: user.name,
             email: user.email,
             phone: user.phone,
-            type: user.type
+            type: user.type,
+            home_address: user.home_address,
+            work_address: user.work_address,
+            toOfficeTime: user.toOfficeTime,
+            fromOfficeTime: user.fromOfficeTime,
+            workingDays: user.workingDays,
+            profilePhoto: user.profilePhoto
           }
         });
 

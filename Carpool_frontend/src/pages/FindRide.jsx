@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import axios from 'axios';
 import { 
   ArrowLeft, 
   MapPin, 
@@ -14,7 +15,11 @@ import {
   Map,
   Search,
   Filter,
-  CheckCircle
+  CheckCircle,
+  Navigation,
+  ShoppingBag,
+  Car,
+  Loader
 } from 'lucide-react';
 
 // Fix Leaflet default marker icon
@@ -40,22 +45,93 @@ const FindRide = () => {
   const [showMapModal, setShowMapModal] = useState(false);
   const [mapLocationType, setMapLocationType] = useState('');
   const [tempMarkerPosition, setTempMarkerPosition] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const [searchData, setSearchData] = useState({
+    ride_type: '',
     source: '',
     destination: '',
     sourceCoords: null,
     destCoords: null,
     date: '',
     time: '',
-    passengers: 1,
-    filters: {
-      verifiedOnly: false,
-      instantBook: false,
-      acAvailable: false,
-      petFriendly: false
-    }
+    passengers: 1
   });
+
+  // Auto-fill today's date and user's home/work addresses
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    setSearchData(prev => ({...prev, date: today}));
+
+    // Get user data from localStorage
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      if (user.home_address) {
+        const homeAddr = `${user.home_address.address}`;
+        const homeCoords = { lat: user.home_address.lat, lng: user.home_address.lng };
+        setSearchData(prev => ({...prev, source: homeAddr, sourceCoords: homeCoords}));
+      }
+    }
+  }, []);
+
+  const rideTypes = [
+    { id: 'to_office', label: 'To Office', icon: Briefcase, description: 'Home to Work' },
+    { id: 'from_office', label: 'From Office', icon: Home, description: 'Work to Home' },
+    { id: 'airport', label: 'Airport', icon: Navigation, description: 'Airport Transfers' },
+    { id: 'event', label: 'Event', icon: Calendar, description: 'Concerts, Sports' },
+    { id: 'shopping', label: 'Shopping', icon: ShoppingBag, description: 'Mall, Stores' },
+    { id: 'other', label: 'Other', icon: Car, description: 'Custom Route' }
+  ];
+
+  const handleRideTypeChange = (typeId) => {
+    setSearchData(prev => ({...prev, ride_type: typeId}));
+
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      
+      if (typeId === 'to_office') {
+        // Home -> Work
+        if (user.home_address) {
+          setSearchData(prev => ({
+            ...prev,
+            ride_type: typeId,
+            source: user.home_address.address,
+            sourceCoords: { lat: user.home_address.lat, lng: user.home_address.lng },
+            destination: user.work_address?.address || '',
+            destCoords: user.work_address ? { lat: user.work_address.lat, lng: user.work_address.lng } : null,
+            time: user.toOfficeTime || ''
+          }));
+        }
+      } else if (typeId === 'from_office') {
+        // Work -> Home
+        if (user.work_address) {
+          setSearchData(prev => ({
+            ...prev,
+            ride_type: typeId,
+            source: user.work_address.address,
+            sourceCoords: { lat: user.work_address.lat, lng: user.work_address.lng },
+            destination: user.home_address?.address || '',
+            destCoords: user.home_address ? { lat: user.home_address.lat, lng: user.home_address.lng } : null,
+            time: user.fromOfficeTime || ''
+          }));
+        }
+      } else {
+        // Clear locations for other types
+        setSearchData(prev => ({
+          ...prev,
+          ride_type: typeId,
+          source: '',
+          destination: '',
+          sourceCoords: null,
+          destCoords: null,
+          time: ''
+        }));
+      }
+    }
+  };
 
   const openMapPicker = (type) => {
     setMapLocationType(type);
@@ -84,11 +160,52 @@ const FindRide = () => {
     setShowMapModal(false);
   };
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
-    console.log('Search Data:', searchData);
-    // Navigate to suggested rides with search params
-    navigate('/suggested-rides', { state: searchData });
+    setError('');
+    
+    // Validation
+    if (!searchData.ride_type) {
+      setError('Please select a ride type');
+      return;
+    }
+    if (!searchData.sourceCoords) {
+      setError('Please select pickup location on map');
+      return;
+    }
+    if (!searchData.destCoords) {
+      setError('Please select drop-off location on map');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await axios.post('http://localhost:7777/api/ridesuggestion/find', {
+        pickup_location: {
+          lat: searchData.sourceCoords.lat,
+          lng: searchData.sourceCoords.lng
+        },
+        radius: 5000 // 5km radius
+      });
+
+      if (response.data && response.data.rides) {
+        // Navigate to results page with rides data
+        navigate('/suggested-rides', { 
+          state: { 
+            rides: response.data.rides,
+            searchData: searchData
+          } 
+        });
+      } else {
+        setError('No rides found matching your criteria');
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+      setError(err.response?.data?.message || 'Failed to search rides. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -116,7 +233,66 @@ const FindRide = () => {
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+        {error && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-6 flex items-start space-x-3">
+            <div className="bg-red-100 p-2 rounded-lg">
+              <MapPin className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-red-900">Error</h4>
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSearch} className="space-y-6">
+          {/* Ride Type Selection */}
+          <div className="bg-white rounded-2xl border-2 border-slate-200 p-6">
+            <h3 className="font-bold text-slate-900 mb-4 flex items-center space-x-2">
+              <Car className="w-5 h-5 text-blue-600" />
+              <span>Select Ride Type</span>
+            </h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Choose the type of ride you're looking for
+            </p>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {rideTypes.map((type) => {
+                const Icon = type.icon;
+                return (
+                  <button
+                    key={type.id}
+                    type="button"
+                    onClick={() => handleRideTypeChange(type.id)}
+                    className={`p-4 rounded-xl border-2 transition ${
+                      searchData.ride_type === type.id
+                        ? 'border-blue-600 bg-blue-50'
+                        : 'border-slate-200 hover:border-blue-300'
+                    }`}
+                  >
+                    <Icon className={`w-8 h-8 mx-auto mb-2 ${
+                      searchData.ride_type === type.id ? 'text-blue-600' : 'text-slate-400'
+                    }`} />
+                    <p className={`font-semibold text-sm ${
+                      searchData.ride_type === type.id ? 'text-blue-900' : 'text-slate-900'
+                    }`}>
+                      {type.label}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">{type.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {(searchData.ride_type === 'to_office' || searchData.ride_type === 'from_office') && (
+              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-800">
+                  ℹ️ Locations and times are auto-filled from your profile. You can change them if needed.
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Route Section */}
           <div className="bg-white rounded-2xl border-2 border-slate-200 p-6">
             <h3 className="font-bold text-slate-900 mb-4 flex items-center space-x-2">
@@ -252,56 +428,6 @@ const FindRide = () => {
             </div>
           </div>
 
-          {/* Filters Section */}
-          <div className="bg-white rounded-2xl border-2 border-slate-200 p-6">
-            <h3 className="font-bold text-slate-900 mb-4 flex items-center space-x-2">
-              <Filter className="w-5 h-5 text-blue-600" />
-              <span>Search Filters (Optional)</span>
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="flex items-center justify-between p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-blue-600 transition">
-                <span className="text-slate-700">Verified Drivers Only</span>
-                <input
-                  type="checkbox"
-                  checked={searchData.filters.verifiedOnly}
-                  onChange={(e) => setSearchData({...searchData, filters: {...searchData.filters, verifiedOnly: e.target.checked}})}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-blue-600 transition">
-                <span className="text-slate-700">Instant Booking</span>
-                <input
-                  type="checkbox"
-                  checked={searchData.filters.instantBook}
-                  onChange={(e) => setSearchData({...searchData, filters: {...searchData.filters, instantBook: e.target.checked}})}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-blue-600 transition">
-                <span className="text-slate-700">AC Available</span>
-                <input
-                  type="checkbox"
-                  checked={searchData.filters.acAvailable}
-                  onChange={(e) => setSearchData({...searchData, filters: {...searchData.filters, acAvailable: e.target.checked}})}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                />
-              </label>
-
-              <label className="flex items-center justify-between p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-blue-600 transition">
-                <span className="text-slate-700">Pet Friendly</span>
-                <input
-                  type="checkbox"
-                  checked={searchData.filters.petFriendly}
-                  onChange={(e) => setSearchData({...searchData, filters: {...searchData.filters, petFriendly: e.target.checked}})}
-                  className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                />
-              </label>
-            </div>
-          </div>
-
           {/* Submit Buttons */}
           <div className="flex gap-4">
             <Link
@@ -312,10 +438,20 @@ const FindRide = () => {
             </Link>
             <button
               type="submit"
-              className="flex-1 bg-gradient-to-r from-blue-600 to-teal-600 text-white py-4 rounded-xl font-semibold hover:shadow-lg transition flex items-center justify-center space-x-2"
+              disabled={loading}
+              className="flex-1 bg-gradient-to-r from-blue-600 to-teal-600 text-white py-4 rounded-xl font-semibold hover:shadow-lg transition flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Search className="w-5 h-5" />
-              <span>Search Rides</span>
+              {loading ? (
+                <>
+                  <Loader className="w-5 h-5 animate-spin" />
+                  <span>Searching...</span>
+                </>
+              ) : (
+                <>
+                  <Search className="w-5 h-5" />
+                  <span>Search Rides</span>
+                </>
+              )}
             </button>
           </div>
         </form>

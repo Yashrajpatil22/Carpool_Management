@@ -12,6 +12,8 @@ const UserSchema = new mongoose.Schema(
     email: { type: String, unique: true, required: true },
     password: { type: String, required: true },
     phone: { type: String, required: true },
+    
+    profilePhoto: { type: String, default: '' }, // URL or base64 string
 
     home_address: LocationSchema,
     work_address: LocationSchema,

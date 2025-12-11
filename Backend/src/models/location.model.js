@@ -24,7 +24,7 @@ const RideOfferingSchema = new mongoose.Schema(
 
     ride_type: {
       type: String,
-      enum: ["to_office", "from_office"],
+      enum: ["to_office", "from_office", "airport", "event", "shopping", "other"],
       required: true,
     },
 
